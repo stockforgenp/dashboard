@@ -34,6 +34,8 @@ import {
   UserCheck,
   Calendar,
   Sparkles,
+  Lock,
+  EyeOff,
 } from "lucide-react";
 import {
   getAllClients,
@@ -57,14 +59,13 @@ import {
   EnquiryStatus,
   EnquiryStats,
 } from "../lib/services/enquiryService.ts";
-import { formatCurrency, formatDate } from "../lib/utils/format.ts";
+import { formatDate } from "../lib/utils/format.ts";
 import { ConfirmDialog } from "../components/common/ConfirmDialog.tsx";
 import { Modal } from "../components/common/Modal.tsx";
 import { useLanguage } from "../context/LanguageContext.tsx";
 import { useToast } from "../context/ToastContext.tsx";
 
 interface ClientsEnquiriesViewProps {
-  currencySymbol: string;
   initialTab?: "clients" | "enquiries";
 }
 
@@ -101,7 +102,6 @@ const INQUIRY_TYPE_LABELS: Record<string, { en: string; np: string }> = {
 };
 
 export const ClientsEnquiriesView: React.FC<ClientsEnquiriesViewProps> = ({
-  currencySymbol,
   initialTab = "clients",
 }) => {
   const { isNepali, formatNumberByLang } = useLanguage();
@@ -127,7 +127,6 @@ export const ClientsEnquiriesView: React.FC<ClientsEnquiriesViewProps> = ({
     total: 0,
     active: 0,
     inactive: 0,
-    totalCreditBalance: 0,
   });
 
   // Enquiries state
@@ -155,9 +154,25 @@ export const ClientsEnquiriesView: React.FC<ClientsEnquiriesViewProps> = ({
   const [deletingEnquiryId, setDeletingEnquiryId] = useState<string | null>(
     null,
   );
-  const [convertingEnquiryId, setConvertingEnquiryId] = useState<string | null>(
+  const [convertingEnquiry, setConvertingEnquiry] = useState<Enquiry | null>(
     null,
   );
+  const [showConvertPassword, setShowConvertPassword] = useState(false);
+  const [isConvertingLoading, setIsConvertingLoading] = useState(false);
+  const [convertForm, setConvertForm] = useState<CreateClientInput>({
+    name: "",
+    company_name: "",
+    email: "",
+    password: "",
+    phone: "",
+    client_type: "Grocery & Supermarket",
+    address: "",
+    pan_number: "",
+    status: "active",
+    notes: "",
+    plan: "trial",
+    durationDays: 14,
+  });
 
   // Refresh data function
   const refreshAllData = useCallback(async () => {
@@ -195,33 +210,37 @@ export const ClientsEnquiriesView: React.FC<ClientsEnquiriesViewProps> = ({
   }, [refreshAllData]);
 
   // Client Form state
+  const [showPassword, setShowPassword] = useState(false);
   const [clientForm, setClientForm] = useState<CreateClientInput>({
     name: "",
     company_name: "",
     email: "",
+    password: "",
     phone: "",
     client_type: "Grocery & Supermarket",
     address: "",
     pan_number: "",
-    credit_limit: 0,
-    current_balance: 0,
     status: "active",
     notes: "",
+    plan: "trial",
+    durationDays: 14,
   });
 
   const resetClientForm = () => {
+    setShowPassword(false);
     setClientForm({
       name: "",
       company_name: "",
       email: "",
+      password: "",
       phone: "",
       client_type: "Grocery & Supermarket",
       address: "",
       pan_number: "",
-      credit_limit: 0,
-      current_balance: 0,
       status: "active",
       notes: "",
+      plan: "trial",
+      durationDays: 14,
     });
   };
 
@@ -231,18 +250,20 @@ export const ClientsEnquiriesView: React.FC<ClientsEnquiriesViewProps> = ({
   };
 
   const handleOpenEditClient = (c: Client) => {
+    setShowPassword(false);
     setClientForm({
       name: c.name,
       company_name: c.company_name || "",
       email: c.email || "",
+      password: "",
       phone: c.phone,
       client_type: c.client_type,
       address: c.address || "",
       pan_number: c.pan_number || "",
-      credit_limit: c.credit_limit,
-      current_balance: c.current_balance,
       status: c.status,
       notes: c.notes || "",
+      plan: c.subscription?.plan || "trial",
+      durationDays: c.subscription?.durationDays || 14,
     });
     setEditingClient(c);
   };
@@ -278,10 +299,10 @@ export const ClientsEnquiriesView: React.FC<ClientsEnquiriesViewProps> = ({
 
   const handleToggleClientStatus = async (
     id: string,
-    currentIsActive: boolean,
+    currentStatus: string,
   ) => {
     try {
-      const updated = await toggleClientStatus(id, currentIsActive);
+      const updated = await toggleClientStatus(id, currentStatus);
       showToast(
         isNepali
           ? `ग्राहक स्थिति परिवर्तन गरियो (${updated.status})`
@@ -369,20 +390,68 @@ export const ClientsEnquiriesView: React.FC<ClientsEnquiriesViewProps> = ({
     }
   };
 
-  const handleConvertEnquiry = async (enquiryId: string) => {
+  const openConvertModal = (enq: Enquiry) => {
+    setShowConvertPassword(false);
+    setConvertForm({
+      name: enq.full_name || "",
+      company_name: enq.shop_name || "",
+      email: enq.email || "",
+      phone: enq.phone || "",
+      password: "",
+      client_type: enq.store_type || "Grocery & Supermarket",
+      address: "",
+      pan_number: "",
+      status: "active",
+      notes: `Converted from Lead/Enquiry ${enq.reference_id}.\nLead Message: ${enq.message}`,
+      plan: "trial",
+      durationDays: 14,
+    });
+    setConvertingEnquiry(enq);
+  };
+
+  const handleConfirmConvertEnquiry = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!convertingEnquiry) return;
+
+    if (!convertForm.email || !convertForm.email.includes("@")) {
+      showToast(
+        isNepali
+          ? "कृपया मान्य इमेल ठेगाना प्रविष्ट गर्नुहोस्"
+          : "Please enter a valid email address",
+        "error",
+      );
+      return;
+    }
+
+    if (convertForm.password && convertForm.password.length < 6) {
+      showToast(
+        isNepali
+          ? "पासवर्ड कम्तिमा ६ वर्णको हुनुपर्दछ"
+          : "Password must be at least 6 characters long",
+        "error",
+      );
+      return;
+    }
+
+    setIsConvertingLoading(true);
     try {
-      const res = await convertEnquiryToClient(enquiryId);
+      const res = await convertEnquiryToClient(
+        convertingEnquiry.id,
+        convertForm,
+      );
       showToast(
         isNepali
           ? `सफल! ${res.client.name} दर्ता भएका ग्राहकमा रूपान्तरण भयो`
           : `Converted! ${res.client.name} is now a registered client`,
         "success",
       );
-      setConvertingEnquiryId(null);
+      setConvertingEnquiry(null);
       await refreshAllData();
       setActiveTab("clients");
     } catch (err: unknown) {
       showToast((err as Error).message || "Failed to convert enquiry", "error");
+    } finally {
+      setIsConvertingLoading(false);
     }
   };
 
@@ -414,8 +483,6 @@ export const ClientsEnquiriesView: React.FC<ClientsEnquiriesViewProps> = ({
         "Client Type",
         "Address",
         "PAN/VAT",
-        "Credit Limit",
-        "Khata Balance",
         "Status",
         "Created At",
       ];
@@ -428,8 +495,6 @@ export const ClientsEnquiriesView: React.FC<ClientsEnquiriesViewProps> = ({
         `"${c.client_type}"`,
         `"${(c.address || "").replace(/"/g, '""')}"`,
         `"${c.pan_number || ""}"`,
-        c.credit_limit || 0,
-        c.current_balance || 0,
         c.status || "active",
         c.createdAt || (c as any).created_at || "",
       ]);
@@ -478,10 +543,10 @@ export const ClientsEnquiriesView: React.FC<ClientsEnquiriesViewProps> = ({
           <p className="text-xs sm:text-sm text-neutral-400 mt-1">
             {isNepali
               ? activeTab === "clients"
-                ? "नेपालभरका खुद्रा पसल, सुपरमार्ट र व्यक्तिगत ग्राहकहरूको खाता, बक्यौता तथा सम्पर्क व्यवस्थापन"
+                ? "नेपालभरका खुद्रा पसल, सुपरमार्ट र व्यक्तिगत ग्राहकहरूको प्रोफाइल तथा सम्पर्क व्यवस्थापन"
                 : "वेबसाइट तथा काउन्टरबाट प्राप्त अन-साइट डेमो अनुरोध, बिलिङ प्रश्नहरू र नयाँ ग्राहक लिड्स"
               : activeTab === "clients"
-                ? "Directory of registered retail accounts, khata credit balances, and store profiles across Nepal"
+                ? "Directory of registered retail accounts, client profiles, and store directory across Nepal"
                 : "Inbound requests for on-site POS demonstrations, sequential billing setups, and incoming retail leads"}
           </p>
         </div>
@@ -589,22 +654,19 @@ export const ClientsEnquiriesView: React.FC<ClientsEnquiriesViewProps> = ({
             <div className="p-4 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-between">
               <div>
                 <div className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider">
-                  {isNepali ? "कुल खाता बक्यौता" : "Total Khata Balance"}
+                  {isNepali ? "सक्रिय ग्राहक" : "Active Clients"}
                 </div>
-                <div className="text-2xl font-bold text-amber-400 font-mono mt-1">
-                  {formatCurrency(
-                    clientStats.totalCreditBalance,
-                    currencySymbol,
-                  )}
+                <div className="text-2xl font-bold text-emerald-400 font-mono mt-1">
+                  {formatNumberByLang(clientStats.active)}
                 </div>
                 <div className="text-[10px] text-neutral-400 mt-0.5">
                   {isNepali
-                    ? "लिन बाँकी खुद्रा रकम"
-                    : "Outstanding receivables"}
+                    ? `${formatNumberByLang(clientStats.inactive)} निष्क्रिय खाता`
+                    : `${formatNumberByLang(clientStats.inactive)} inactive accounts`}
                 </div>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
-                <CreditCard className="w-5 h-5" />
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                <Users className="w-5 h-5" />
               </div>
             </div>
 
@@ -671,9 +733,17 @@ export const ClientsEnquiriesView: React.FC<ClientsEnquiriesViewProps> = ({
                 <option value="all">
                   {isNepali ? "सबै स्थिति" : "All Status"}
                 </option>
-                <option value="active">{isNepali ? "सक्रिय" : "Active"}</option>
+                <option value="active">
+                  {isNepali ? "सक्रिय (Active)" : "Active"}
+                </option>
                 <option value="inactive">
-                  {isNepali ? "निष्क्रिय" : "Inactive"}
+                  {isNepali ? "निष्क्रिय (Inactive)" : "Inactive"}
+                </option>
+                <option value="suspended">
+                  {isNepali ? "निलम्बित (Suspended)" : "Suspended"}
+                </option>
+                <option value="banned">
+                  {isNepali ? "प्रतिबन्धित (Banned)" : "Banned"}
                 </option>
               </select>
 
@@ -719,8 +789,8 @@ export const ClientsEnquiriesView: React.FC<ClientsEnquiriesViewProps> = ({
                     ? "खोज फिल्टरहरू परिवर्तन गरी हेर्नुहोस्।"
                     : "Try adjusting your search query or filters."
                   : isNepali
-                    ? "तपाईंको खुद्रा पसल वा ग्राहकहरूको विवरण यहाँ दर्ता गरी खाता ट्र्याक गर्नुहोस्।"
-                    : "Start by registering your regular retail clients, store accounts, and khata credit balances."}
+                    ? "तपाईंको खुद्रा पसल वा ग्राहकहरूको विवरण यहाँ दर्ता गरी व्यवस्थापन गर्नुहोस्।"
+                    : "Start by registering your regular retail clients, store accounts, and contact records."}
               </p>
               <button
                 onClick={handleOpenAddClient}
@@ -748,9 +818,6 @@ export const ClientsEnquiriesView: React.FC<ClientsEnquiriesViewProps> = ({
                       </th>
                       <th className="py-3 px-4">
                         {isNepali ? "प्रकार र ठेगाना" : "Type & Location"}
-                      </th>
-                      <th className="py-3 px-4">
-                        {isNepali ? "खाता बक्यौता" : "Khata Balance"}
                       </th>
                       <th className="py-3 px-4">
                         {isNepali ? "स्थिति" : "Status"}
@@ -822,53 +889,35 @@ export const ClientsEnquiriesView: React.FC<ClientsEnquiriesViewProps> = ({
                           </div>
                         </td>
 
-                        <td className="py-3.5 px-4 font-mono">
-                          <div>
-                            <div
-                              className={`font-bold ${
-                                (c.current_balance || 0) > 0
-                                  ? "text-amber-400"
-                                  : "text-neutral-300"
-                              }`}
-                            >
-                              {formatCurrency(
-                                c.current_balance || 0,
-                                currencySymbol,
-                              )}
-                            </div>
-                            {(c.credit_limit || 0) > 0 && (
-                              <div className="text-[10px] text-neutral-500">
-                                {isNepali ? "सीमा" : "Limit"}:{" "}
-                                {formatCurrency(
-                                  c.credit_limit || 0,
-                                  currencySymbol,
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </td>
-
                         <td className="py-3.5 px-4">
                           <button
                             onClick={() =>
-                              handleToggleClientStatus(c.id, c.isActive)
+                              handleToggleClientStatus(c.id, c.status || "active")
                             }
                             className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold border transition-all cursor-pointer ${
                               c.status === "active"
                                 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20"
-                                : "bg-neutral-800 text-neutral-400 border-neutral-700 hover:bg-neutral-750"
+                                : c.status === "suspended"
+                                  ? "bg-amber-500/10 text-amber-400 border-amber-500/30 hover:bg-amber-500/20"
+                                  : c.status === "banned"
+                                    ? "bg-rose-500/10 text-rose-400 border-rose-500/30 hover:bg-rose-500/20"
+                                    : "bg-neutral-800 text-neutral-400 border-neutral-700 hover:bg-neutral-750"
                             }`}
                             title={
                               isNepali
                                 ? "स्थिति परिवर्तन गर्नुहोस्"
-                                : "Toggle active status"
+                                : "Toggle active/inactive status"
                             }
                           >
                             <span
                               className={`w-1.5 h-1.5 rounded-full ${
                                 c.status === "active"
                                   ? "bg-emerald-400"
-                                  : "bg-neutral-500"
+                                  : c.status === "suspended"
+                                    ? "bg-amber-400"
+                                    : c.status === "banned"
+                                      ? "bg-rose-400"
+                                      : "bg-neutral-500"
                               }`}
                             />
                             <span>
@@ -876,9 +925,17 @@ export const ClientsEnquiriesView: React.FC<ClientsEnquiriesViewProps> = ({
                                 ? isNepali
                                   ? "सक्रिय"
                                   : "Active"
-                                : isNepali
-                                  ? "निष्क्रिय"
-                                  : "Inactive"}
+                                : c.status === "suspended"
+                                  ? isNepali
+                                    ? "निलम्बित"
+                                    : "Suspended"
+                                  : c.status === "banned"
+                                    ? isNepali
+                                      ? "प्रतिबन्धित"
+                                      : "Banned"
+                                    : isNepali
+                                      ? "निष्क्रिय"
+                                      : "Inactive"}
                             </span>
                           </button>
                         </td>
@@ -1319,7 +1376,7 @@ export const ClientsEnquiriesView: React.FC<ClientsEnquiriesViewProps> = ({
                       <div>
                         {enq.status !== "converted" ? (
                           <button
-                            onClick={() => setConvertingEnquiryId(enq.id)}
+                            onClick={() => openConvertModal(enq)}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600/15 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-emerald-500/30 text-xs font-semibold transition-all cursor-pointer"
                           >
                             <UserCheck className="w-3.5 h-3.5" />
@@ -1368,12 +1425,30 @@ export const ClientsEnquiriesView: React.FC<ClientsEnquiriesViewProps> = ({
         }
         subtitle={
           isNepali
-            ? "पसलको नाम, सम्पर्क विवरण, खाता क्रेडिट सीमा र PAN/VAT प्रविष्ट गर्नुहोस्"
-            : "Enter business name, phone, khata credit ceiling, and fiscal PAN/VAT"
+            ? "पसलको नाम, सम्पर्क विवरण, स्टोर प्रकार र PAN/VAT प्रविष्ट गर्नुहोस्"
+            : "Enter business name, phone, store type, and fiscal PAN/VAT"
         }
         maxWidth="xl"
       >
         <form onSubmit={handleSaveClient} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-neutral-300 mb-1">
+              {isNepali ? "पसल / फर्मको नाम" : "Business / Store Name"}
+            </label>
+            <input
+              type="text"
+              value={clientForm.company_name}
+              onChange={(e) =>
+                setClientForm({ ...clientForm, company_name: e.target.value })
+              }
+              placeholder={
+                isNepali
+                  ? "जस्तै: श्रेष्ठ सुपरमार्ट"
+                  : "e.g. Shrestha Supermart"
+              }
+              className="w-full px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-lg text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
+            />
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-neutral-300 mb-1">
@@ -1394,28 +1469,6 @@ export const ClientsEnquiriesView: React.FC<ClientsEnquiriesViewProps> = ({
                 className="w-full px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-lg text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
               />
             </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-neutral-300 mb-1">
-                {isNepali ? "पसल / फर्मको नाम" : "Business / Store Name"}
-              </label>
-              <input
-                type="text"
-                value={clientForm.company_name}
-                onChange={(e) =>
-                  setClientForm({ ...clientForm, company_name: e.target.value })
-                }
-                placeholder={
-                  isNepali
-                    ? "जस्तै: श्रेष्ठ सुपरमार्ट"
-                    : "e.g. Shrestha Supermart"
-                }
-                className="w-full px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-lg text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-neutral-300 mb-1">
                 {isNepali
@@ -1433,13 +1486,16 @@ export const ClientsEnquiriesView: React.FC<ClientsEnquiriesViewProps> = ({
                 className="w-full px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-lg text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500 font-mono"
               />
             </div>
+          </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-neutral-300 mb-1">
-                {isNepali ? "इमेल ठेगाना" : "Email Address"}
+                {isNepali ? "इमेल ठेगाना *" : "Email Address *"}
               </label>
               <input
                 type="email"
+                required
                 value={clientForm.email}
                 onChange={(e) =>
                   setClientForm({ ...clientForm, email: e.target.value })
@@ -1447,6 +1503,56 @@ export const ClientsEnquiriesView: React.FC<ClientsEnquiriesViewProps> = ({
                 placeholder="storekeeper@mart.np"
                 className="w-full px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-lg text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
               />
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-neutral-300">
+                  {editingClient
+                    ? isNepali
+                      ? "नयाँ पासवर्ड (परिवर्तन गर्न चाहेमा मात्र)"
+                      : "New Password (Leave blank to keep current)"
+                    : isNepali
+                      ? "खाता पासवर्ड *"
+                      : "Account Password *"}
+                </label>
+                {!editingClient && !clientForm.password && (
+                  <span className="text-[10px] text-neutral-500">
+                    {isNepali
+                      ? "खाली छोडेमा: StockForge2026!"
+                      : "Default: StockForge2026!"}
+                  </span>
+                )}
+              </div>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={clientForm.password || ""}
+                  onChange={(e) =>
+                    setClientForm({ ...clientForm, password: e.target.value })
+                  }
+                  placeholder={
+                    editingClient
+                      ? "••••••••"
+                      : isNepali
+                        ? "नयाँ पासवर्ड प्रविष्ट गर्नुहोस् वा पूर्वनिर्धारित प्रयोग गर्नुहोस्"
+                        : "Enter client password (min 6 characters)"
+                  }
+                  minLength={editingClient ? undefined : 6}
+                  className="w-full pl-3 pr-10 py-2 bg-neutral-900 border border-neutral-800 rounded-lg text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500 font-mono"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300 cursor-pointer"
+                  title={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -1486,68 +1592,179 @@ export const ClientsEnquiriesView: React.FC<ClientsEnquiriesViewProps> = ({
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-neutral-300 mb-1">
-              {isNepali ? "ठेगाना / सहर" : "Store Location / Address"}
-            </label>
-            <input
-              type="text"
-              value={clientForm.address}
-              onChange={(e) =>
-                setClientForm({ ...clientForm, address: e.target.value })
-              }
-              placeholder={
-                isNepali
-                  ? "जस्तै: नयाँ सडक, काठमाडौँ"
-                  : "e.g. New Road, Kathmandu"
-              }
-              className="w-full px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-lg text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
-            />
-          </div>
-
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-neutral-300 mb-1">
-                {isNepali
-                  ? `खाता क्रेडिट सीमा (${currencySymbol})`
-                  : `Khata Credit Limit (${currencySymbol})`}
+                {isNepali ? "ठेगाना / सहर" : "Store Location / Address"}
               </label>
               <input
-                type="number"
-                min="0"
-                step="100"
-                value={clientForm.credit_limit || ""}
+                type="text"
+                value={clientForm.address}
                 onChange={(e) =>
-                  setClientForm({
-                    ...clientForm,
-                    credit_limit: Number(e.target.value) || 0,
-                  })
+                  setClientForm({ ...clientForm, address: e.target.value })
                 }
-                placeholder="50000"
-                className="w-full px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-lg text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500 font-mono"
+                placeholder={
+                  isNepali
+                    ? "जस्तै: नयाँ सडक, काठमाडौँ"
+                    : "e.g. New Road, Kathmandu"
+                }
+                className="w-full px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-lg text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
               />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-neutral-300 mb-1">
                 {isNepali
-                  ? `सुरुवाती बक्यौता रकम (${currencySymbol})`
-                  : `Current Balance Due (${currencySymbol})`}
+                  ? "खाता स्थिति (Account Status)"
+                  : "Client Account Status"}
               </label>
-              <input
-                type="number"
-                min="0"
-                step="50"
-                value={clientForm.current_balance || ""}
+              <select
+                value={clientForm.status || "active"}
                 onChange={(e) =>
-                  setClientForm({
-                    ...clientForm,
-                    current_balance: Number(e.target.value) || 0,
-                  })
+                  setClientForm({ ...clientForm, status: e.target.value })
                 }
-                placeholder="0"
-                className="w-full px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-lg text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500 font-mono"
-              />
+                className="w-full px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-lg text-xs text-neutral-100 focus:outline-none focus:border-emerald-500 cursor-pointer"
+              >
+                <option value="active">
+                  {isNepali ? "सक्रिय (Active)" : "Active"}
+                </option>
+                <option value="inactive">
+                  {isNepali ? "निष्क्रिय (Inactive)" : "Inactive"}
+                </option>
+                <option value="suspended">
+                  {isNepali ? "निलम्बित (Suspended)" : "Suspended"}
+                </option>
+                <option value="banned">
+                  {isNepali ? "प्रतिबन्धित (Banned)" : "Banned"}
+                </option>
+              </select>
+            </div>
+          </div>
+
+          {/* Onboarding Plan & Duration */}
+          <div className="p-3.5 rounded-xl bg-neutral-950/70 border border-neutral-800 space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-neutral-200">
+                {isNepali
+                  ? "योजना तथा सदस्यता अवधि"
+                  : "Subscription Plan & Duration"}
+              </label>
+              <span className="text-[10px] text-emerald-400 font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                {isNepali ? "सुरुवाती सक्रियता" : "Onboarding Setup"}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-medium text-neutral-400 mb-1">
+                  {isNepali ? "सदस्यता योजना (Plan)" : "Subscription Plan"}
+                </label>
+                <select
+                  value={clientForm.plan || "trial"}
+                  onChange={(e) => {
+                    const selectedPlan = e.target.value;
+                    let defaultDuration = clientForm.durationDays || 14;
+                    if (
+                      selectedPlan === "trial" &&
+                      (!clientForm.durationDays ||
+                        clientForm.durationDays === 30)
+                    ) {
+                      defaultDuration = 14;
+                    } else if (
+                      selectedPlan !== "trial" &&
+                      clientForm.durationDays === 14
+                    ) {
+                      defaultDuration = 30;
+                    }
+                    setClientForm({
+                      ...clientForm,
+                      plan: selectedPlan,
+                      durationDays: defaultDuration,
+                    });
+                  }}
+                  className="w-full px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-lg text-xs text-neutral-100 focus:outline-none focus:border-emerald-500 cursor-pointer"
+                >
+                  <option value="trial">
+                    {isNepali
+                      ? "परीक्षण (Trial Plan)"
+                      : "Trial (14 Days Default)"}
+                  </option>
+                  <option value="starter">
+                    {isNepali ? "स्टार्टर (Starter Plan)" : "Starter Plan"}
+                  </option>
+                  <option value="pro">
+                    {isNepali ? "प्रो / स्ट्यान्डर्ड (Pro Plan)" : "Pro Plan"}
+                  </option>
+                  <option value="enterprise">
+                    {isNepali
+                      ? "इन्टरप्राइज (Enterprise Plan)"
+                      : "Enterprise Plan"}
+                  </option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-medium text-neutral-400 mb-1">
+                  {isNepali ? "योजना अवधि (दिनहरू)" : "Plan Duration (Days)"}
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="3650"
+                  required
+                  value={clientForm.durationDays || 14}
+                  onChange={(e) =>
+                    setClientForm({
+                      ...clientForm,
+                      durationDays: Math.max(1, parseInt(e.target.value) || 1),
+                    })
+                  }
+                  className="w-full px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-lg text-xs text-neutral-100 focus:outline-none focus:border-emerald-500 font-mono"
+                  placeholder="e.g. 14, 30, 90, 365"
+                />
+              </div>
+            </div>
+
+            {/* Quick Duration Preset Pills */}
+            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+              <span className="text-[10px] text-neutral-500 mr-1">
+                {isNepali ? "द्रुत अवधि:" : "Quick Presets:"}
+              </span>
+              {[
+                { label: isNepali ? "१४ दिन" : "14 Days", days: 14 },
+                { label: isNepali ? "३० दिन" : "30 Days", days: 30 },
+                { label: isNepali ? "६० दिन" : "60 Days", days: 60 },
+                { label: isNepali ? "९० दिन (३ महिना)" : "90 Days", days: 90 },
+                {
+                  label: isNepali ? "१८० दिन (६ महिना)" : "180 Days",
+                  days: 180,
+                },
+                {
+                  label: isNepali ? "३६५ दिन (१ वर्ष)" : "365 Days (1 Yr)",
+                  days: 365,
+                },
+              ].map((preset) => {
+                const isSelected = clientForm.durationDays === preset.days;
+                return (
+                  <button
+                    key={preset.days}
+                    type="button"
+                    onClick={() =>
+                      setClientForm({
+                        ...clientForm,
+                        durationDays: preset.days,
+                      })
+                    }
+                    className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors cursor-pointer ${
+                      isSelected
+                        ? "bg-emerald-600 text-white font-bold"
+                        : "bg-neutral-850 hover:bg-neutral-800 text-neutral-400 hover:text-neutral-200 border border-neutral-800"
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -1566,7 +1783,7 @@ export const ClientsEnquiriesView: React.FC<ClientsEnquiriesViewProps> = ({
               placeholder={
                 isNepali
                   ? "भुक्तानी सर्तहरू, सम्पर्क समय वा विशेष छुट सम्बन्धी नोट..."
-                  : "Payment terms, preferred delivery hours, or khata agreements..."
+                  : "Payment terms, preferred delivery hours, or store agreements..."
               }
               className="w-full px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-lg text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
             />
@@ -1612,28 +1829,23 @@ export const ClientsEnquiriesView: React.FC<ClientsEnquiriesViewProps> = ({
           <div className="space-y-4 text-xs">
             <div className="p-4 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-between">
               <div>
-                <div className="text-[11px] text-neutral-400">
-                  {isNepali ? "खाता बक्यौता" : "Khata Outstanding"}
+                <div className="text-base font-bold text-neutral-100">
+                  {viewingClient.name}
                 </div>
-                <div className="text-2xl font-bold text-amber-400 font-mono mt-0.5">
-                  {formatCurrency(
-                    viewingClient.current_balance || 0,
-                    currencySymbol,
-                  )}
-                </div>
-                <div className="text-[10px] text-neutral-500 mt-0.5">
-                  {isNepali ? "क्रेडिट सीमा" : "Credit limit"}:{" "}
-                  {formatCurrency(
-                    viewingClient.credit_limit || 0,
-                    currencySymbol,
-                  )}
+                <div className="text-[11px] text-neutral-400 mt-0.5">
+                  {viewingClient.company_name ||
+                    (isNepali ? "स्वतन्त्र खुद्रा स्टोर" : "Retail Store")}
                 </div>
               </div>
               <div
                 className={`px-3 py-1 rounded-full text-xs font-bold ${
                   viewingClient.status === "active"
                     ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
-                    : "bg-neutral-800 text-neutral-400 border border-neutral-700"
+                    : viewingClient.status === "suspended"
+                      ? "bg-amber-500/10 text-amber-400 border border-amber-500/30"
+                      : viewingClient.status === "banned"
+                        ? "bg-rose-500/10 text-rose-400 border border-rose-500/30"
+                        : "bg-neutral-800 text-neutral-400 border border-neutral-700"
                 }`}
               >
                 {(viewingClient.status || "ACTIVE").toUpperCase()}
@@ -1691,6 +1903,39 @@ export const ClientsEnquiriesView: React.FC<ClientsEnquiriesViewProps> = ({
                   {viewingClient.address || "—"}
                 </div>
               </div>
+
+              {viewingClient.subscription && (
+                <div className="col-span-2 pt-2 border-t border-neutral-800 grid grid-cols-3 gap-2">
+                  <div>
+                    <span className="text-neutral-500 text-[10px]">
+                      {isNepali ? "योजना (Plan)" : "Plan"}:
+                    </span>
+                    <div className="font-semibold text-emerald-400 capitalize mt-0.5">
+                      {viewingClient.subscription.plan || "trial"}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-neutral-500 text-[10px]">
+                      {isNepali ? "अवधि" : "Duration"}:
+                    </span>
+                    <div className="font-mono text-neutral-200 mt-0.5">
+                      {viewingClient.subscription.durationDays
+                        ? `${viewingClient.subscription.durationDays} ${isNepali ? "दिन" : "days"}`
+                        : "—"}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-neutral-500 text-[10px]">
+                      {isNepali ? "म्याद सकिने मिति" : "Expiry Date"}:
+                    </span>
+                    <div className="font-mono text-neutral-300 mt-0.5 text-[11px]">
+                      {viewingClient.subscription.expiryDate
+                        ? formatDate(viewingClient.subscription.expiryDate)
+                        : "—"}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {viewingClient.notes && (
@@ -2043,9 +2288,9 @@ export const ClientsEnquiriesView: React.FC<ClientsEnquiriesViewProps> = ({
               {viewingEnquiry.status !== "converted" ? (
                 <button
                   onClick={() => {
-                    const id = viewingEnquiry.id;
+                    const enq = viewingEnquiry;
                     setViewingEnquiry(null);
-                    handleConvertEnquiry(id);
+                    openConvertModal(enq);
                   }}
                   className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
@@ -2076,31 +2321,449 @@ export const ClientsEnquiriesView: React.FC<ClientsEnquiriesViewProps> = ({
         )}
       </Modal>
 
-      {/* CONFIRM CONVERT TO CLIENT DIALOG */}
-      <ConfirmDialog
-        isOpen={convertingEnquiryId !== null}
-        onClose={() => setConvertingEnquiryId(null)}
-        onConfirm={() => {
-          if (convertingEnquiryId) {
-            handleConvertEnquiry(convertingEnquiryId);
+      {/* CONVERT ENQUIRY TO CLIENT MODAL */}
+      <Modal
+        isOpen={convertingEnquiry !== null}
+        onClose={() => {
+          if (!isConvertingLoading) {
+            setConvertingEnquiry(null);
           }
         }}
         title={
           isNepali
-            ? "ग्राहकमा रूपान्तरण गर्नुहोस्"
-            : "Convert Enquiry to Client"
+            ? "ग्राहकमा रूपान्तरण र दर्ता गर्नुहोस्"
+            : "Convert Enquiry & Register Client"
         }
-        message={
+        subtitle={
           isNepali
-            ? 'यो सोधपुछबाट नयाँ दर्ता भएको ग्राहक प्रोफाइल सिर्जना हुनेछ र स्थिति "Converted" मा परिवर्तन हुनेछ।'
-            : 'This will automatically register a new client profile from this inquiry and mark the status as "Converted".'
+            ? "सोधपुछको सम्पूर्ण विवरण समीक्षा गर्नुहोस् र ठेगाना तथा पासवर्ड जस्ता छुटेका जानकारी भर्नुहोस्"
+            : "Review lead details and provide missing information such as address and password"
         }
-        confirmText={
-          isNepali ? "हो, रूपान्तरण गर्नुहोस्" : "Yes, Convert to Client"
-        }
-        cancelText={isNepali ? "रद्द गर्नुहोस्" : "Cancel"}
-        isDestructive={false}
-      />
+        maxWidth="xl"
+      >
+        {convertingEnquiry && (
+          <form onSubmit={handleConfirmConvertEnquiry} className="space-y-4">
+            {/* Lead Summary Overview Banner */}
+            <div className="p-3.5 bg-neutral-900/90 rounded-xl border border-neutral-800 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-mono text-emerald-400 font-bold flex items-center gap-1.5">
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  {convertingEnquiry.reference_id}
+                </span>
+                <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  {convertingEnquiry.inquiry_type}
+                </span>
+              </div>
+              {convertingEnquiry.message && (
+                <div className="text-[11px] text-neutral-400 bg-neutral-950 p-2.5 rounded-lg border border-neutral-800/80 leading-relaxed max-h-24 overflow-y-auto">
+                  <span className="text-neutral-500 font-medium block text-[10px] mb-0.5 uppercase tracking-wider">
+                    {isNepali ? "सोधपुछ सन्देश:" : "Inquiry Message:"}
+                  </span>
+                  {convertingEnquiry.message}
+                </div>
+              )}
+            </div>
+
+            {/* Store Name & Contact Person */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-neutral-300 mb-1">
+                  {isNepali ? "पसल / फर्मको नाम" : "Business / Store Name"}
+                </label>
+                <input
+                  type="text"
+                  value={convertForm.company_name}
+                  onChange={(e) =>
+                    setConvertForm({
+                      ...convertForm,
+                      company_name: e.target.value,
+                    })
+                  }
+                  placeholder={
+                    isNepali
+                      ? "जस्तै: श्रेष्ठ सुपरमार्ट"
+                      : "e.g. Shrestha Supermart"
+                  }
+                  className="w-full px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-lg text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-neutral-300 mb-1">
+                  {isNepali
+                    ? "ग्राहक / सम्पर्क व्यक्तिको नाम *"
+                    : "Client / Owner Name *"}
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={convertForm.name}
+                  onChange={(e) =>
+                    setConvertForm({ ...convertForm, name: e.target.value })
+                  }
+                  className="w-full px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-lg text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+            </div>
+
+            {/* Contact Information */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-neutral-300 mb-1">
+                  {isNepali ? "इमेल ठेगाना *" : "Email Address *"}
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={convertForm.email}
+                  onChange={(e) =>
+                    setConvertForm({ ...convertForm, email: e.target.value })
+                  }
+                  className="w-full px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-lg text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-neutral-300 mb-1">
+                  {isNepali
+                    ? "सम्पर्क फोन / मोबाइल *"
+                    : "Phone / Mobile Number *"}
+                </label>
+                <input
+                  type="tel"
+                  required
+                  value={convertForm.phone}
+                  onChange={(e) =>
+                    setConvertForm({ ...convertForm, phone: e.target.value })
+                  }
+                  className="w-full px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-lg text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500 font-mono"
+                />
+              </div>
+            </div>
+
+            {/* Missing Information Highlight: Address & Password */}
+            <div className="p-3.5 rounded-xl bg-neutral-950/70 border border-neutral-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-neutral-200 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  {isNepali
+                    ? "थप आवश्यक विवरण (ठेगाना तथा पासवर्ड)"
+                    : "Missing Information (Address & Password)"}
+                </label>
+                <span className="text-[10px] text-amber-400 font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20">
+                  {isNepali ? "अत्यावश्यक" : "Required for Login"}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-medium text-neutral-300 mb-1">
+                    {isNepali
+                      ? "पसलको ठेगाना / स्थान *"
+                      : "Store Address / Location *"}
+                  </label>
+                  <input
+                    type="text"
+                    value={convertForm.address || ""}
+                    onChange={(e) =>
+                      setConvertForm({ ...convertForm, address: e.target.value })
+                    }
+                    placeholder={
+                      isNepali
+                        ? "जस्तै: नयाँ सडक, काठमाडौँ"
+                        : "e.g. New Road, Kathmandu"
+                    }
+                    className="w-full px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-lg text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-medium text-neutral-300">
+                      {isNepali
+                        ? "ग्राहक लगइन पासवर्ड *"
+                        : "Client Login Password *"}
+                    </label>
+                    {!convertForm.password && (
+                      <span className="text-[10px] text-neutral-500">
+                        {isNepali
+                          ? "खाली: StockForge2026!"
+                          : "Default: StockForge2026!"}
+                      </span>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <input
+                      type={showConvertPassword ? "text" : "password"}
+                      value={convertForm.password || ""}
+                      onChange={(e) =>
+                        setConvertForm({
+                          ...convertForm,
+                          password: e.target.value,
+                        })
+                      }
+                      placeholder={
+                        isNepali
+                          ? "पासवर्ड प्रविष्ट गर्नुहोस् (कम्तिमा ६ वर्ण)"
+                          : "Enter password (min 6 characters)"
+                      }
+                      className="w-full pl-3 pr-10 py-2 bg-neutral-900 border border-neutral-800 rounded-lg text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500 font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowConvertPassword(!showConvertPassword)
+                      }
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300 cursor-pointer"
+                      title={
+                        showConvertPassword
+                          ? "Hide password"
+                          : "Show password"
+                      }
+                    >
+                      {showConvertPassword ? (
+                        <EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Store Type & PAN / VAT */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-neutral-300 mb-1">
+                  {isNepali ? "पसल / ग्राहक प्रकार" : "Retail Store Type"}
+                </label>
+                <select
+                  value={convertForm.client_type}
+                  onChange={(e) =>
+                    setConvertForm({
+                      ...convertForm,
+                      client_type: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-lg text-xs text-neutral-100 focus:outline-none focus:border-emerald-500 cursor-pointer"
+                >
+                  {STORE_TYPES.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-neutral-300 mb-1">
+                  {isNepali ? "स्थायी लेखा नं (PAN / VAT)" : "PAN / VAT Number"}
+                </label>
+                <input
+                  type="text"
+                  value={convertForm.pan_number || ""}
+                  onChange={(e) =>
+                    setConvertForm({
+                      ...convertForm,
+                      pan_number: e.target.value,
+                    })
+                  }
+                  placeholder="60XXXXXXXX"
+                  className="w-full px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-lg text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500 font-mono"
+                />
+              </div>
+            </div>
+
+            {/* Subscription Plan & Duration */}
+            <div className="p-3.5 rounded-xl bg-neutral-950/70 border border-neutral-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-neutral-200">
+                  {isNepali
+                    ? "सदस्यता योजना तथा अवधि"
+                    : "Subscription Plan & Duration"}
+                </label>
+                <span className="text-[10px] text-emerald-400 font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                  {isNepali ? "ग्राहक सदस्यता" : "Client Subscription"}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-medium text-neutral-400 mb-1">
+                    {isNepali ? "सदस्यता योजना (Plan)" : "Subscription Plan"}
+                  </label>
+                  <select
+                    value={convertForm.plan || "trial"}
+                    onChange={(e) => {
+                      const selectedPlan = e.target.value;
+                      let defaultDuration = convertForm.durationDays || 14;
+                      if (
+                        selectedPlan === "trial" &&
+                        (!convertForm.durationDays ||
+                          convertForm.durationDays === 30)
+                      ) {
+                        defaultDuration = 14;
+                      } else if (
+                        selectedPlan !== "trial" &&
+                        convertForm.durationDays === 14
+                      ) {
+                        defaultDuration = 30;
+                      }
+                      setConvertForm({
+                        ...convertForm,
+                        plan: selectedPlan,
+                        durationDays: defaultDuration,
+                      });
+                    }}
+                    className="w-full px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-lg text-xs text-neutral-100 focus:outline-none focus:border-emerald-500 cursor-pointer"
+                  >
+                    <option value="trial">
+                      {isNepali
+                        ? "परीक्षण (Trial Plan)"
+                        : "Trial (14 Days Default)"}
+                    </option>
+                    <option value="starter">
+                      {isNepali ? "स्टार्टर (Starter Plan)" : "Starter Plan"}
+                    </option>
+                    <option value="pro">
+                      {isNepali ? "प्रो / स्ट्यान्डर्ड (Pro Plan)" : "Pro Plan"}
+                    </option>
+                    <option value="enterprise">
+                      {isNepali
+                        ? "इन्टरप्राइज (Enterprise Plan)"
+                        : "Enterprise Plan"}
+                    </option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-medium text-neutral-400 mb-1">
+                    {isNepali ? "योजना अवधि (दिनहरू)" : "Plan Duration (Days)"}
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="3650"
+                    required
+                    value={convertForm.durationDays || 14}
+                    onChange={(e) =>
+                      setConvertForm({
+                        ...convertForm,
+                        durationDays:
+                          Math.max(1, parseInt(e.target.value) || 1),
+                      })
+                    }
+                    className="w-full px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-lg text-xs text-neutral-100 focus:outline-none focus:border-emerald-500 font-mono"
+                    placeholder="e.g. 14, 30, 90, 365"
+                  />
+                </div>
+              </div>
+
+              {/* Quick Duration Preset Pills */}
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                <span className="text-[10px] text-neutral-500 mr-1">
+                  {isNepali ? "द्रुत अवधि:" : "Quick Presets:"}
+                </span>
+                {[
+                  { label: isNepali ? "१४ दिन" : "14 Days", days: 14 },
+                  { label: isNepali ? "३० दिन" : "30 Days", days: 30 },
+                  { label: isNepali ? "६० दिन" : "60 Days", days: 60 },
+                  {
+                    label: isNepali ? "९० दिन (३ महिना)" : "90 Days",
+                    days: 90,
+                  },
+                  {
+                    label: isNepali ? "१८० दिन (६ महिना)" : "180 Days",
+                    days: 180,
+                  },
+                  {
+                    label: isNepali ? "३६५ दिन (१ वर्ष)" : "365 Days (1 Yr)",
+                    days: 365,
+                  },
+                ].map((preset) => {
+                  const isSelected = convertForm.durationDays === preset.days;
+                  return (
+                    <button
+                      key={preset.days}
+                      type="button"
+                      onClick={() =>
+                        setConvertForm({
+                          ...convertForm,
+                          durationDays: preset.days,
+                        })
+                      }
+                      className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors cursor-pointer ${
+                        isSelected
+                          ? "bg-emerald-600 text-white font-bold"
+                          : "bg-neutral-850 hover:bg-neutral-800 text-neutral-400 hover:text-neutral-200 border border-neutral-800"
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div>
+              <label className="block text-xs font-semibold text-neutral-300 mb-1">
+                {isNepali
+                  ? "टिप्पणी तथा नोटहरू"
+                  : "Internal Notes & Conversion Details"}
+              </label>
+              <textarea
+                rows={2}
+                value={convertForm.notes}
+                onChange={(e) =>
+                  setConvertForm({ ...convertForm, notes: e.target.value })
+                }
+                placeholder={
+                  isNepali
+                    ? "सोधपुछ सम्बन्धी अतिरिक्त नोटहरू..."
+                    : "Notes regarding this conversion..."
+                }
+                className="w-full px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-lg text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+
+            <div className="flex justify-end gap-3 pt-3 border-t border-neutral-800">
+              <button
+                type="button"
+                disabled={isConvertingLoading}
+                onClick={() => setConvertingEnquiry(null)}
+                className="px-4 py-2 text-xs font-semibold text-neutral-400 hover:text-white bg-neutral-800 hover:bg-neutral-700 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+              >
+                {isNepali ? "रद्द गर्नुहोस्" : "Cancel"}
+              </button>
+              <button
+                type="submit"
+                disabled={isConvertingLoading}
+                className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg shadow-sm transition-colors cursor-pointer inline-flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {isConvertingLoading ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>
+                      {isNepali ? "दर्ता गर्दै..." : "Registering Client..."}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <UserCheck className="w-3.5 h-3.5" />
+                    <span>
+                      {isNepali
+                        ? "ग्राहक दर्ता सम्पन्न गर्नुहोस्"
+                        : "Complete Client Registration"}
+                    </span>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
 
       {/* CONFIRM DELETE CLIENT DIALOG */}
       <ConfirmDialog

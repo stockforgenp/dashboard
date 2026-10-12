@@ -34,7 +34,7 @@ export const SHORTCUT_REGISTRY: ShortcutDefinition[] = [
     category: "Navigation",
     label: "Registered Clients",
     description:
-      "Manage registered clients, retail stores, and khata ledger balances",
+      "Manage registered clients, retail stores, and accounts directory",
     keys: ["alt+c", "ctrl+shift+c", "cmd+shift+c"],
     displayKeys: "Alt+C",
   },

@@ -96,8 +96,7 @@ export default function App() {
 
   // Authentication View Routes (/login, /auth)
   const isAuthRoute =
-    location.pathname === "/login" ||
-    location.pathname === "/auth";
+    location.pathname === "/login" || location.pathname === "/auth";
 
   if (isAuthRoute) {
     return (
@@ -131,7 +130,6 @@ export default function App() {
           onSelectTab={handleNavigate}
           toggleSidebar={toggleSidebar}
           setToggleSidebar={() => setToggleSidebar((prev) => !prev)}
-          lowStockCount={0}
           onOpenShortcuts={() => setIsShortcutsHelpOpen(true)}
         />
 
@@ -162,57 +160,26 @@ export default function App() {
                   />
                   <Route
                     path="/dashboard"
-                    element={
-                      <DashboardView
-                        currencySymbol={effectiveCurrencySymbol}
-                        onNavigateToTab={handleNavigate}
-                      />
-                    }
+                    element={<DashboardView onNavigateToTab={handleNavigate} />}
                   />
-
                   <Route
                     path="/clients"
-                    element={
-                      <ClientsEnquiriesView
-                        currencySymbol={effectiveCurrencySymbol}
-                        initialTab="clients"
-                      />
-                    }
-                  />
-                  <Route
-                    path="/registered-clients"
-                    element={
-                      <ClientsEnquiriesView
-                        currencySymbol={effectiveCurrencySymbol}
-                        initialTab="clients"
-                      />
-                    }
+                    element={<ClientsEnquiriesView initialTab="clients" />}
                   />
                   <Route
                     path="/enquiries"
-                    element={
-                      <ClientsEnquiriesView
-                        currencySymbol={effectiveCurrencySymbol}
-                        initialTab="enquiries"
-                      />
-                    }
+                    element={<ClientsEnquiriesView initialTab="enquiries" />}
                   />
                   <Route
                     path="/reviews"
                     element={
-                      <ClientReviewsView
-                        currencySymbol={effectiveCurrencySymbol}
-                        onNavigateToTab={handleNavigate}
-                      />
+                      <ClientReviewsView onNavigateToTab={handleNavigate} />
                     }
                   />
                   <Route
                     path="/client-reviews"
                     element={
-                      <ClientReviewsView
-                        currencySymbol={effectiveCurrencySymbol}
-                        onNavigateToTab={handleNavigate}
-                      />
+                      <ClientReviewsView onNavigateToTab={handleNavigate} />
                     }
                   />
 

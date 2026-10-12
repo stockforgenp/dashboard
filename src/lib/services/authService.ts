@@ -49,21 +49,19 @@ export async function loginAdmin(input: AdminLoginInput): Promise<AdminUser> {
 }
 
 /**
- * Get current admin profile
- * GET /api/v1/admin/me
- */
-export async function getAdminProfile(): Promise<AdminUser> {
-  const admin = await apiRequest<AdminUser>("/admin/me");
-  setStoredAdminUser(admin);
-  return admin;
-}
-
-/**
  * Super Admin Logout
  */
-export function logoutAdmin(): void {
-  removeStoredToken();
-  removeStoredAdminUser();
+export async function logoutAdmin(): Promise<void> {
+  try {
+    await apiRequest("/admin/logout", {
+      method: "POST",
+    });
+  } catch (err) {
+    console.warn("Failed to notify backend of logout:", err);
+  } finally {
+    removeStoredToken();
+    removeStoredAdminUser();
+  }
 }
 
 /**

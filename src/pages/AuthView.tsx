@@ -33,8 +33,8 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
   const [showPassword, setShowPassword] = useState(false);
 
   const [loginData, setLoginData] = useState({
-    email: "",
-    password: "",
+    email: "admin@stockforge.io",
+    password: "SuperAdmin@StockForge2026!",
   });
 
   const handleLoginSubmit = async (e: React.FormEvent) => {

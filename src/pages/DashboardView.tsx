@@ -6,7 +6,7 @@
  * NOTE: The reviews in this dashboard are strictly internal and NOT connected to the public website.
  */
 import React, { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Users,
   UserCheck,
@@ -47,17 +47,15 @@ import {
   deleteClientReview,
   ClientReview,
 } from "../lib/services/reviewService";
-import { formatCurrency, formatDate } from "../lib/utils/format";
+import { formatDate } from "../lib/utils/format";
 
 type DashboardSectionTab = "all" | "clients" | "enquiries" | "reviews";
 
 interface DashboardViewProps {
-  currencySymbol: string;
   onNavigateToTab: (tab: NavTab) => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
-  currencySymbol,
   onNavigateToTab,
 }) => {
   const { isNepali, formatNumberByLang } = useLanguage();
@@ -74,7 +72,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     trial: 0,
     expired: 0,
     cancelled: 0,
-    totalCreditBalance: 0,
   }));
   const [enquiryStats, setEnquiryStats] = useState(() => ({
     total: 0,
@@ -285,8 +282,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </h1>
           <p className="text-xs sm:text-sm text-neutral-400 mt-1">
             {isNepali
-              ? "दर्ता भएका पसलहरू, खाता क्रेडिट बक्यौता, इनबाउन्ड लिड्स र सन्तुष्ट ग्राहकहरूको आन्तरिक समीक्षा"
-              : "Executive relationship command center for registered retail clients, credit balances, inbound leads, and client reviews"}
+              ? "दर्ता भएका पसलहरू, सदस्यता स्थिति, इनबाउन्ड लिड्स र सन्तुष्ट ग्राहकहरूको आन्तरिक समीक्षा"
+              : "Executive relationship command center for registered retail clients, inbound leads, and client reviews"}
           </p>
         </div>
 
@@ -414,32 +411,33 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </motion.div>
 
-        {/* Khata Credit Receivables */}
+        {/* Active Client Subscriptions */}
         <motion.div
           whileHover={{ y: -2 }}
           transition={{ duration: 0.15 }}
           onClick={() => setActiveDashboardTab("clients")}
-          className="p-5 rounded-2xl bg-gradient-to-br from-amber-950/30 via-neutral-900 to-neutral-900 border border-amber-500/25 hover:border-amber-500/50 flex flex-col justify-between transition-all cursor-pointer group shadow-sm"
+          className="p-5 rounded-2xl bg-gradient-to-br from-emerald-950/30 via-neutral-900 to-neutral-900 border border-emerald-500/25 hover:border-emerald-500/50 flex flex-col justify-between transition-all cursor-pointer group shadow-sm"
         >
           <div className="flex items-center justify-between">
             <span className="text-xs text-neutral-400 font-medium">
               {isNepali
-                ? "कुल खाता बक्यौता (Receivables)"
-                : "Khata Credit Receivables"}
+                ? "सक्रिय सदस्यताहरू (Active Accounts)"
+                : "Active Client Accounts"}
             </span>
-            <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 group-hover:scale-105 transition-transform">
-              <CreditCard className="w-4 h-4" />
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 group-hover:scale-105 transition-transform">
+              <UserCheck className="w-4 h-4" />
             </div>
           </div>
           <div className="mt-4">
-            <div className="text-2xl sm:text-3xl font-extrabold text-amber-400 font-mono tabular-nums">
-              {formatCurrency(clientStats.totalCreditBalance, currencySymbol)}
+            <div className="text-2xl sm:text-3xl font-extrabold text-emerald-400 font-mono tabular-nums">
+              {formatNumberByLang(clientStats.active)}
             </div>
             <div className="text-[11px] text-neutral-400 mt-1 flex items-center justify-between">
               <span>
-                {isNepali ? "ग्राहक बक्यौता रकम" : "Outstanding client credit"}
+                {formatNumberByLang(clientStats.trial)}{" "}
+                {isNepali ? "परीक्षण (ट्रायल)" : "on trial plan"}
               </span>
-              <span className="text-amber-400 group-hover:translate-x-1 transition-transform font-semibold">
+              <span className="text-emerald-400 group-hover:translate-x-1 transition-transform font-semibold">
                 →
               </span>
             </div>
@@ -541,8 +539,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     </h2>
                     <p className="text-[11px] text-neutral-400">
                       {isNepali
-                        ? "सम्पर्क विवरण, स्टोर प्रकार र खाता बक्यौता"
-                        : "Active business accounts & credit balances"}
+                        ? "सम्पर्क विवरण, स्टोर प्रकार र सदस्यता स्थिति"
+                        : "Active retail accounts & subscription status"}
                     </p>
                   </div>
                 </div>
@@ -598,16 +596,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       </div>
 
                       <div className="text-right shrink-0">
-                        <div className="text-xs font-mono font-bold text-amber-400">
-                          {formatCurrency(
-                            client.current_balance || 0,
-                            currencySymbol,
-                          )}
-                        </div>
-
-                        <div className="text-[10px] text-neutral-500">
-                          {isNepali ? "खाता बक्यौता" : "Due Balance"}
-                        </div>
+                        <span
+                          className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                            client.status === "active"
+                              ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+                              : "bg-neutral-800 text-neutral-400 border border-neutral-700"
+                          }`}
+                        >
+                          {(client.status || "active").toUpperCase()}
+                        </span>
                       </div>
                     </div>
                   ))
@@ -999,48 +996,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           )}
         </div>
       )}
-
-      {/* System Integrity & Client Sovereignty Footer Card */}
-      <div className="p-5 rounded-2xl bg-neutral-950/80 border border-neutral-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center text-emerald-400 shrink-0">
-            <ShieldCheck className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="text-xs font-bold text-neutral-200">
-              {isNepali
-                ? "१००% स्थानीय SQLite WASM ग्राहक तथा समीक्षा डाटा"
-                : "100% Local In-Browser SQLite WASM Client & Review Sovereignty"}
-            </div>
-            <div className="text-[11px] text-neutral-400">
-              {isNepali
-                ? "तपाईंका सबै ग्राहक प्रोफाइल, फोन नम्बर, खाता बक्यौता, र सन्तुष्ट ग्राहक समीक्षाहरू तपाईंको कम्प्युटरमा मात्र सुरक्षित रहन्छन्।"
-                : "All client records, khata balances, inbound demo leads, and client reviews remain exclusively inside your local offline browser storage."}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            onClick={() => handleOpenAddReview()}
-            className="px-3 py-1.5 text-xs font-medium text-amber-300 hover:text-white bg-amber-500/10 hover:bg-amber-500/20 rounded-lg border border-amber-500/30 transition-colors cursor-pointer"
-          >
-            {isNepali ? "+ समीक्षा थप्नुहोस्" : "+ Add Review"}
-          </button>
-          <button
-            onClick={() => onNavigateToTab("clients")}
-            className="px-3 py-1.5 text-xs font-medium text-neutral-300 hover:text-white bg-neutral-900 hover:bg-neutral-800 rounded-lg border border-neutral-800 transition-colors cursor-pointer"
-          >
-            {isNepali ? "ग्राहक खाता" : "Khata Ledgers"}
-          </button>
-          <button
-            onClick={() => onNavigateToTab("enquiries")}
-            className="px-3 py-1.5 text-xs font-medium text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg border border-emerald-500/30 transition-colors cursor-pointer"
-          >
-            {isNepali ? "डेमो लिड्स" : "Demo Leads"}
-          </button>
-        </div>
-      </div>
 
       {/* Modal: Add Happy Client Review */}
       <Modal

@@ -15,7 +15,6 @@ import {
   Languages,
   Store,
   LogOut,
-  Globe,
 } from "lucide-react";
 import { MODIFIER_LABEL } from "../../lib/hooks/useGlobalShortcuts.ts";
 import { useTheme } from "../../context/ThemeContext.tsx";
@@ -28,7 +27,6 @@ export type NavTab = "dashboard" | "clients" | "enquiries" | "reviews";
 interface SidebarProps {
   currentTab: NavTab;
   onSelectTab: (tab: NavTab) => void;
-  lowStockCount: number;
   onOpenShortcuts?: () => void;
   toggleSidebar: boolean;
   setToggleSidebar: () => void;
@@ -37,14 +35,12 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({
   currentTab,
   onSelectTab,
-  lowStockCount,
   onOpenShortcuts,
   toggleSidebar,
   setToggleSidebar,
 }) => {
   const { toggleTheme, isDark } = useTheme();
-  const { t, language, toggleLanguage, isNepali, formatNumberByLang } =
-    useLanguage();
+  const { t, toggleLanguage, isNepali } = useLanguage();
   const { currentShop, logout } = useAuth();
   const [enquiryNewCount, setEnquiryNewCount] = React.useState(0);
 
@@ -254,31 +250,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </motion.button>
       </div>
 
-      {/* Public Website Link */}
-      <div className="px-3 py-1.5 border-t border-neutral-800/80 bg-neutral-950 shrink-0">
-        <Link
-          to="/"
-          className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs text-neutral-400 hover:text-emerald-400 hover:bg-neutral-900 border border-neutral-800/60 hover:border-emerald-500/30 transition-colors"
-          title={
-            isNepali ? "सार्वजनिक वेबसाइटमा जानुहोस्" : "Visit Public Website"
-          }
-        >
-          <div className="flex items-center gap-2 min-w-0">
-            <Globe className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            {toggleSidebar && (
-              <span className="truncate">
-                {isNepali ? "वेबसाइट हेर्नुहोस्" : "Public Website"}
-              </span>
-            )}
-          </div>
-          {toggleSidebar && (
-            <span className="text-[10px] text-emerald-500/80 font-mono shrink-0">
-              ↗
-            </span>
-          )}
-        </Link>
-      </div>
-
       {/* Keyboard Shortcuts Trigger Button */}
       {onOpenShortcuts && (
         <div className="px-3 py-2 border-t border-neutral-800/80 bg-neutral-950 shrink-0">
@@ -336,19 +307,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <LogOut className="w-3.5 h-3.5" />
               </button>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* Bottom Integrity Indicator */}
-      {toggleSidebar && (
-        <div className="p-4 border-t border-neutral-800/80 text-[11px] text-neutral-500 bg-neutral-950/60 shrink-0">
-          <div className="flex items-center gap-2 text-neutral-400 font-medium mb-1">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-            <span>{t("acid_safe")}</span>
-          </div>
-          <div className="text-[10px] text-neutral-500 leading-tight">
-            {t("acid_desc")}
           </div>
         </div>
       )}

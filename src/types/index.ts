@@ -25,8 +25,6 @@ export interface Client {
   client_type: string;
   address: string | null;
   pan_number: string | null;
-  credit_limit: number;
-  current_balance: number;
   status: ClientStatus;
   notes: string | null;
   created_at: string;
@@ -41,8 +39,6 @@ export interface CreateClientInput {
   client_type?: string;
   address?: string;
   pan_number?: string;
-  credit_limit?: number;
-  current_balance?: number;
   status?: ClientStatus;
   notes?: string;
 }
@@ -57,8 +53,10 @@ export type EnquiryType =
 
 export type EnquiryStatus =
   | "new"
+  | "pending"
   | "contacted"
   | "in_progress"
+  | "resolved"
   | "converted"
   | "closed";
 

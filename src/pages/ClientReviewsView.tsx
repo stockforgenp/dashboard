@@ -33,12 +33,10 @@ import {
 } from "../lib/services/reviewService";
 
 interface ClientReviewsViewProps {
-  currencySymbol?: string;
   onNavigateToTab?: (tab: NavTab) => void;
 }
 
 export const ClientReviewsView: React.FC<ClientReviewsViewProps> = ({
-  currencySymbol = "Rs.",
   onNavigateToTab,
 }) => {
   const { isNepali } = useLanguage();

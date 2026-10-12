@@ -9,6 +9,12 @@ export interface ClientSubscription {
   autoRenew?: boolean;
 }
 
+export type ClientAccountStatus =
+  | "active"
+  | "inactive"
+  | "suspended"
+  | "banned";
+
 export interface Client {
   id: string; // Firebase UID
   name: string;
@@ -18,7 +24,7 @@ export interface Client {
   shopType?: string;
   address?: string;
   currencySymbol?: string;
-  isActive: boolean;
+  status: ClientAccountStatus | string;
   subscription: ClientSubscription;
   createdAt: string;
   updatedAt: string;
@@ -27,9 +33,6 @@ export interface Client {
   company_name?: string | null;
   client_type?: string;
   pan_number?: string | null;
-  credit_limit?: number;
-  current_balance?: number;
-  status?: string;
   notes?: string | null;
 }
 
@@ -44,14 +47,13 @@ export interface CreateClientInput {
   currencySymbol?: string;
   plan?: string;
   trialDays?: number;
+  durationDays?: number;
+  status?: ClientAccountStatus | string;
 
   // Compatibility
   company_name?: string;
   client_type?: string;
   pan_number?: string;
-  credit_limit?: number;
-  current_balance?: number;
-  status?: string;
   notes?: string;
 }
 
@@ -62,19 +64,18 @@ export interface ClientStats {
   trial: number;
   expired: number;
   cancelled: number;
-  totalCreditBalance: number;
 }
 
 function normalizeClient(doc: any): Client {
+  const resolvedStatus: ClientAccountStatus = doc.status || "active";
+
   return {
     ...doc,
     id: doc.id || doc._id || "",
     company_name: doc.shopName || doc.company_name || null,
     client_type: doc.shopType || doc.client_type || "Retail Store",
     pan_number: doc.pan_number || null,
-    credit_limit: doc.credit_limit || 0,
-    current_balance: doc.current_balance || 0,
-    status: doc.isActive ? "active" : "inactive",
+    status: resolvedStatus,
     notes: doc.notes || null,
   };
 }
@@ -104,6 +105,7 @@ export async function getClientById(id: string): Promise<Client> {
 }
 
 export async function createClient(input: CreateClientInput): Promise<Client> {
+  const status = input.status || "active";
   const payload = {
     name: input.name,
     email: input.email,
@@ -114,7 +116,9 @@ export async function createClient(input: CreateClientInput): Promise<Client> {
     address: input.address,
     currencySymbol: input.currencySymbol || "Rs.",
     plan: input.plan || "trial",
-    trialDays: input.trialDays || 14,
+    trialDays: input.trialDays || input.durationDays || 14,
+    durationDays: input.durationDays || input.trialDays || 14,
+    status,
   };
 
   const result = await apiRequest<any>("/clients/register", {
@@ -142,7 +146,10 @@ export async function updateClient(
   if (input.address !== undefined) payload.address = input.address;
   if (input.currencySymbol !== undefined)
     payload.currencySymbol = input.currencySymbol;
-  if (input.status !== undefined) payload.isActive = input.status === "active";
+  if (input.password) payload.password = input.password;
+  if (input.status !== undefined) {
+    payload.status = input.status;
+  }
 
   const result = await apiRequest<Client>(`/clients/${id}`, {
     method: "PATCH",
@@ -153,10 +160,11 @@ export async function updateClient(
 
 export async function toggleClientStatus(
   id: string,
-  currentIsActive: boolean,
+  currentStatus: string,
 ): Promise<Client> {
+  const nextStatus = currentStatus === "active" ? "inactive" : "active";
   return updateClient(id, {
-    status: currentIsActive ? "inactive" : "active",
+    status: nextStatus,
   });
 }
 
@@ -206,7 +214,7 @@ export async function getClientsStats(): Promise<ClientStats> {
     let cancelled = 0;
 
     for (const c of clients) {
-      if (c.isActive) active++;
+      if (c.status === "active") active++;
       const subStatus = c.subscription?.status;
       if (subStatus === "trial") trial++;
       else if (subStatus === "expired") expired++;
@@ -220,7 +228,6 @@ export async function getClientsStats(): Promise<ClientStats> {
       trial,
       expired,
       cancelled,
-      totalCreditBalance: 0,
     };
   } catch (err) {
     console.error("Failed to get clients stats:", err);
@@ -231,7 +238,6 @@ export async function getClientsStats(): Promise<ClientStats> {
       trial: 0,
       expired: 0,
       cancelled: 0,
-      totalCreditBalance: 0,
     };
   }
 }

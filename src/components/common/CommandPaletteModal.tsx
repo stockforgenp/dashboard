@@ -107,8 +107,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
           ? "दर्ता ग्राहक तथा पसलहरू"
           : "Registered Clients & Stores",
         subtitle: isNepali
-          ? "ग्राहक विवरण, स्टोर प्रोफाइल, क्रेडिट सीमा र खाता बक्यौता"
-          : "Manage registered clients, retail accounts, and khata balances",
+          ? "ग्राहक विवरण, स्टोर प्रोफाइल र सम्पर्क जानकारी"
+          : "Manage registered clients, retail accounts, and store details",
         icon: UserCheck,
         shortcut: "Alt+C",
         category: "Screens",

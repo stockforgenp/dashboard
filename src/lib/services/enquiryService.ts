@@ -1,5 +1,5 @@
 import { apiRequest } from "../api/apiClient";
-import { Client, createClient } from "./clientService";
+import { Client, createClient, CreateClientInput } from "./clientService";
 
 export type EnquiryType =
   | "on_site_demo"
@@ -174,21 +174,43 @@ export async function deleteEnquiry(id: string): Promise<void> {
 }
 
 /**
- * 1-Click Convert Enquiry into a Registered Client
+ * Convert Enquiry into a Registered Client
+ * Can take additional client onboarding information (password, address, pan_number, plan, durationDays, etc.)
  */
-export async function convertEnquiryToClient(enquiryId: string): Promise<{
+export async function convertEnquiryToClient(
+  enquiryId: string,
+  extraData?: Partial<CreateClientInput>,
+): Promise<{
   client: Client;
   enquiry: Enquiry;
 }> {
   const enq = await getEnquiryById(enquiryId);
 
   const client = await createClient({
-    name: enq.full_name,
-    email: enq.email,
-    phone: enq.phone,
-    shopName: enq.shop_name || undefined,
-    shopType: enq.store_type || "Retail Store",
-    notes: `Converted from Enquiry ${enq.reference_id} on ${new Date().toLocaleDateString()}.\nInquiry message: ${enq.message}`,
+    name: extraData?.name || enq.full_name,
+    email: extraData?.email || enq.email,
+    password: extraData?.password || "StockForge2026!",
+    phone: extraData?.phone !== undefined ? extraData.phone : enq.phone,
+    shopName:
+      extraData?.shopName ||
+      extraData?.company_name ||
+      enq.shop_name ||
+      undefined,
+    shopType:
+      extraData?.shopType ||
+      extraData?.client_type ||
+      enq.store_type ||
+      "Retail Store",
+    address: extraData?.address,
+    pan_number: extraData?.pan_number,
+    currencySymbol: extraData?.currencySymbol || "Rs.",
+    plan: extraData?.plan || "trial",
+    durationDays: extraData?.durationDays || extraData?.trialDays || 14,
+    trialDays: extraData?.trialDays || extraData?.durationDays || 14,
+    status: extraData?.status || "active",
+    notes:
+      extraData?.notes ||
+      `Converted from Enquiry ${enq.reference_id} on ${new Date().toLocaleDateString()}.\nInquiry message: ${enq.message}`,
   });
 
   const updatedEnquiry = await updateEnquiryStatus(

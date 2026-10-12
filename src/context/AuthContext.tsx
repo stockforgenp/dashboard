@@ -14,7 +14,6 @@ import {
   AdminUser,
   AdminLoginInput,
   loginAdmin,
-  getAdminProfile,
   logoutAdmin,
   hasAdminToken,
 } from "../lib/services/authService";
@@ -26,40 +25,31 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (input: AdminLoginInput) => Promise<AdminUser>;
-  logout: () => void;
-  refreshProfile: () => Promise<void>;
+  logout: () => void | Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [admin, setAdmin] = useState<AdminUser | null>(() =>
-    getStoredAdminUser(),
-  );
-  const [isLoading, setIsLoading] = useState(true);
-
-  const refreshProfile = useCallback(async () => {
-    if (!hasAdminToken()) {
-      setAdmin(null);
-      setIsLoading(false);
-      return;
+  const [admin, setAdmin] = useState<AdminUser | null>(() => {
+    if (hasAdminToken()) {
+      return getStoredAdminUser();
     }
-
-    try {
-      const profile = await getAdminProfile();
-      setAdmin(profile);
-    } catch (err) {
-      console.warn("Failed to verify admin profile, clearing token:", err);
-      logoutAdmin();
-      setAdmin(null);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+    return null;
+  });
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    refreshProfile();
-  }, [refreshProfile]);
+    if (!hasAdminToken()) {
+      setAdmin(null);
+    } else {
+      const stored = getStoredAdminUser();
+      if (stored) {
+        setAdmin(stored);
+      }
+    }
+    setIsLoading(false);
+  }, []);
 
   const login = useCallback(
     async (input: AdminLoginInput): Promise<AdminUser> => {
@@ -75,9 +65,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const logout = useCallback(() => {
-    logoutAdmin();
-    setAdmin(null);
+  const logout = useCallback(async () => {
+    try {
+      await logoutAdmin();
+    } finally {
+      setAdmin(null);
+    }
   }, []);
 
   // Compatibility object for existing headers/components referencing currentShop
@@ -102,7 +95,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         login,
         logout,
-        refreshProfile,
       }}
     >
       {children}

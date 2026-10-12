@@ -50,8 +50,8 @@ export const Header: React.FC<HeaderProps> = ({
     clients: {
       title: t("nav_clients"),
       subtitle: isNepali
-        ? "दर्ता भएका पसलहरू, ग्राहक खाता, क्रेडिट सीमा र सम्पर्क विवरण"
-        : "Registered retail clients, khata credit balances, and store directory",
+        ? "दर्ता भएका पसलहरू, ग्राहक खाता र सम्पर्क विवरण"
+        : "Registered retail clients, store directory, and contact records",
     },
     enquiries: {
       title: t("nav_enquiries"),
