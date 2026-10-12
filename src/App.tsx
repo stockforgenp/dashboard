@@ -94,19 +94,15 @@ export default function App() {
     );
   }
 
-  // Authentication View Routes (/login, /register, /auth)
+  // Authentication View Routes (/login, /auth)
   const isAuthRoute =
     location.pathname === "/login" ||
-    location.pathname === "/register" ||
     location.pathname === "/auth";
 
   if (isAuthRoute) {
     return (
       <ToastProvider>
-        <AuthView
-          onSuccess={() => navigate("/dashboard")}
-          onBackToWebsite={() => navigate("/")}
-        />
+        <AuthView onSuccess={() => navigate("/dashboard")} />
       </ToastProvider>
     );
   }
@@ -121,7 +117,6 @@ export default function App() {
               location.pathname === "/" ? "/dashboard" : location.pathname,
             )
           }
-          onBackToWebsite={() => navigate("/")}
         />
       </ToastProvider>
     );

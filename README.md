@@ -1,20 +1,31 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# StockForge - Super Admin Console
 
-# Run and deploy your AI Studio app
+The centralized management console for StockForge Super Administrators to manage clients, enterprise POS licenses, subscription histories, inbound sales inquiries, and client feedback.
 
-This contains everything you need to run your app locally.
+## Features
 
-View your app in AI Studio: https://ai.studio/apps/f8b6d643-e553-40d7-b48a-f800f22c9f0c
+- **Executive Analytics**: Real-time breakdown of MRR, active clients, license statuses, and revenue trends.
+- **Client & License Lifecycle**: Create, view, suspend, or renew client software subscriptions and device limits.
+- **Inbound Enquiries**: Process and manage demo requests and contact inquiries submitted via the platform.
+- **Verified Client Reviews**: Review, curate, and moderate client satisfaction ratings and testimonials.
+- **Security & RBAC**: Direct integration with StockForge Backend REST APIs protected by JWT and Firebase Auth.
 
-## Run Locally
+## Getting Started
 
-**Prerequisites:**  Node.js
+### Prerequisites
+- Node.js (v18+)
+- StockForge Backend API running (default: `http://localhost:5000`)
 
+### Installation & Development
+```bash
+# Install dependencies
+npm install
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+# Start local development server
+npm run dev
+```
+
+### Production Build
+```bash
+npm run build
+```

@@ -13,8 +13,6 @@ import {
   Sun,
   Moon,
   Languages,
-  ShieldCheck,
-  Globe,
   Loader2,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext.tsx";
@@ -23,14 +21,9 @@ import { useTheme } from "../context/ThemeContext.tsx";
 
 interface AuthViewProps {
   onSuccess?: () => void;
-  onBackToWebsite?: () => void;
-  initialMode?: "login" | "register";
 }
 
-export const AuthView: React.FC<AuthViewProps> = ({
-  onSuccess,
-  onBackToWebsite,
-}) => {
+export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
   const { login } = useAuth();
   const { isNepali, toggleLanguage } = useLanguage();
   const { isDark, toggleTheme } = useTheme();
@@ -93,9 +86,11 @@ export const AuthView: React.FC<AuthViewProps> = ({
       {/* Top Header Bar */}
       <header className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex items-center justify-between border-b border-neutral-900/60">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/20 border border-emerald-400/30">
-            <ShieldCheck className="w-5 h-5 text-neutral-950" />
-          </div>
+          <img
+            src="/icon.png"
+            alt="StockForge Logo"
+            className="w-9 h-9 rounded-xl object-contain shadow-lg shadow-emerald-500/20"
+          />
           <div>
             <div className="text-base font-bold tracking-tight text-neutral-100 flex items-center gap-2">
               StockForge
@@ -110,16 +105,6 @@ export const AuthView: React.FC<AuthViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          {onBackToWebsite && (
-            <button
-              onClick={onBackToWebsite}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900 transition-colors cursor-pointer flex items-center gap-1.5"
-            >
-              <Globe className="w-3.5 h-3.5" />
-              <span>Back to Portal</span>
-            </button>
-          )}
-
           <button
             onClick={toggleLanguage}
             className="px-3 py-1.5 rounded-lg text-xs font-medium text-neutral-300 bg-neutral-900/80 hover:bg-neutral-800 border border-neutral-800 transition-colors cursor-pointer flex items-center gap-1.5"
@@ -152,9 +137,11 @@ export const AuthView: React.FC<AuthViewProps> = ({
             className="bg-neutral-900/90 border border-neutral-800 rounded-2xl p-6 sm:p-8 space-y-6"
           >
             <div className="text-center space-y-1.5">
-              <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 mx-auto flex items-center justify-center mb-3">
-                <Lock className="w-6 h-6" />
-              </div>
+              <img
+                src="/icon.png"
+                alt="StockForge Logo"
+                className="w-14 h-14 rounded-2xl object-contain mx-auto mb-3 shadow-lg shadow-emerald-500/20"
+              />
               <h1 className="text-xl font-bold tracking-tight text-neutral-100">
                 {isNepali ? "सुपर एडमिन लगइन" : "Super Admin Sign In"}
               </h1>

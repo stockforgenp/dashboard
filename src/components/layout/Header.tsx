@@ -84,7 +84,6 @@ export const Header: React.FC<HeaderProps> = ({
           </p>
         </div>
 
-
         {/* Command Palette Trigger */}
         {onOpenCommandPalette && (
           <motion.button

@@ -1,28 +1,28 @@
-import { apiRequest } from '../api/apiClient';
-import { Client, createClient } from './clientService';
+import { apiRequest } from "../api/apiClient";
+import { Client, createClient } from "./clientService";
 
 export type EnquiryType =
-  | 'on_site_demo'
-  | 'vat_compliance'
-  | 'hardware_pairing'
-  | 'multi_unit_help'
-  | 'wholesale_deployment'
-  | 'general_support'
-  | 'sales'
-  | 'support'
-  | 'demo'
-  | 'billing'
-  | 'partnership'
-  | 'general';
+  | "on_site_demo"
+  | "vat_compliance"
+  | "hardware_pairing"
+  | "multi_unit_help"
+  | "wholesale_deployment"
+  | "general_support"
+  | "sales"
+  | "support"
+  | "demo"
+  | "billing"
+  | "partnership"
+  | "general";
 
 export type EnquiryStatus =
-  | 'new'
-  | 'pending'
-  | 'contacted'
-  | 'in_progress'
-  | 'converted'
-  | 'resolved'
-  | 'closed';
+  | "new"
+  | "pending"
+  | "contacted"
+  | "in_progress"
+  | "converted"
+  | "resolved"
+  | "closed";
 
 export interface Enquiry {
   id: string;
@@ -69,21 +69,21 @@ export interface EnquiryStats {
 }
 
 function normalizeEnquiry(doc: any): Enquiry {
-  const status: EnquiryStatus = doc.status === 'pending' ? 'new' : doc.status;
+  const status: EnquiryStatus = doc.status === "pending" ? "new" : doc.status;
   const createdAt = doc.createdAt || doc.created_at || new Date().toISOString();
   const updatedAt = doc.updatedAt || doc.updated_at || createdAt;
 
   return {
-    id: doc.id || doc._id || '',
-    reference_id: doc.reference_id || `INQ-${doc.id?.slice?.(0, 8) || 'REF'}`,
-    full_name: doc.name || doc.full_name || '',
+    id: doc.id || doc._id || "",
+    reference_id: doc.reference_id || `INQ-${doc.id?.slice?.(0, 8) || "REF"}`,
+    full_name: doc.name || doc.full_name || "",
     shop_name: doc.shopName || doc.shop_name || null,
-    email: doc.email || '',
-    phone: doc.phone || '',
-    store_type: doc.store_type || doc.shopType || 'Grocery & Supermarket',
-    inquiry_type: doc.type || doc.inquiry_type || 'general',
-    subject: doc.subject || 'Inquiry',
-    message: doc.message || '',
+    email: doc.email || "",
+    phone: doc.phone || "",
+    store_type: doc.store_type || doc.shopType || "Grocery & Supermarket",
+    inquiry_type: doc.type || doc.inquiry_type || "general",
+    subject: doc.subject || "Inquiry",
+    message: doc.message || "",
     status,
     notes: doc.adminNotes || doc.notes || null,
     clientId: doc.clientId,
@@ -106,14 +106,14 @@ export async function getAllEnquiries(filter?: {
     limit: filter?.limit || 100,
   };
   if (filter?.search) params.search = filter.search;
-  if (filter?.status && filter.status !== 'all') {
-    params.status = filter.status === 'new' ? 'pending' : filter.status;
+  if (filter?.status && filter.status !== "all") {
+    params.status = filter.status === "new" ? "pending" : filter.status;
   }
-  if (filter?.inquiryType && filter.inquiryType !== 'all') {
+  if (filter?.inquiryType && filter.inquiryType !== "all") {
     params.type = filter.inquiryType;
   }
 
-  const result = await apiRequest<any[]>('/inquiries', { params });
+  const result = await apiRequest<any[]>("/inquiries", { params });
   return (Array.isArray(result) ? result : []).map(normalizeEnquiry);
 }
 
@@ -130,14 +130,14 @@ export async function createEnquiry(
     email: input.email,
     phone: input.phone,
     shopName: input.shop_name,
-    type: input.inquiry_type || 'general',
+    type: input.inquiry_type || "general",
     subject: input.subject || `Inquiry from ${input.full_name}`,
     message: input.message,
     clientId: input.clientId,
   };
 
-  const result = await apiRequest<any>('/inquiries', {
-    method: 'POST',
+  const result = await apiRequest<any>("/inquiries", {
+    method: "POST",
     body: JSON.stringify(payload),
   });
 
@@ -150,7 +150,7 @@ export async function updateEnquiryStatus(
   notes?: string,
 ): Promise<Enquiry> {
   // Map 'new' to 'pending' for backend compatibility
-  const backendStatus = status === 'new' ? 'pending' : status;
+  const backendStatus = status === "new" ? "pending" : status;
 
   const payload: any = {
     status: backendStatus,
@@ -160,7 +160,7 @@ export async function updateEnquiryStatus(
   }
 
   const result = await apiRequest<any>(`/inquiries/${id}`, {
-    method: 'PATCH',
+    method: "PATCH",
     body: JSON.stringify(payload),
   });
 
@@ -169,7 +169,7 @@ export async function updateEnquiryStatus(
 
 export async function deleteEnquiry(id: string): Promise<void> {
   await apiRequest(`/inquiries/${id}`, {
-    method: 'DELETE',
+    method: "DELETE",
   });
 }
 
@@ -187,13 +187,13 @@ export async function convertEnquiryToClient(enquiryId: string): Promise<{
     email: enq.email,
     phone: enq.phone,
     shopName: enq.shop_name || undefined,
-    shopType: enq.store_type || 'Retail Store',
+    shopType: enq.store_type || "Retail Store",
     notes: `Converted from Enquiry ${enq.reference_id} on ${new Date().toLocaleDateString()}.\nInquiry message: ${enq.message}`,
   });
 
   const updatedEnquiry = await updateEnquiryStatus(
     enquiryId,
-    'converted',
+    "converted",
     `Converted to Registered Client ${client.name} (${client.id}).`,
   );
 
@@ -210,12 +210,12 @@ export async function getEnquiryStats(): Promise<EnquiryStats> {
     let closed_count = 0;
 
     for (const inq of list) {
-      if (inq.status === 'new' || inq.status === 'pending') new_count++;
-      else if (inq.status === 'contacted') contacted_count++;
-      else if (inq.status === 'in_progress') in_progress_count++;
-      else if (inq.status === 'converted' || inq.status === 'resolved')
+      if (inq.status === "new" || inq.status === "pending") new_count++;
+      else if (inq.status === "contacted") contacted_count++;
+      else if (inq.status === "in_progress") in_progress_count++;
+      else if (inq.status === "converted" || inq.status === "resolved")
         converted_count++;
-      else if (inq.status === 'closed') closed_count++;
+      else if (inq.status === "closed") closed_count++;
     }
 
     return {
@@ -227,7 +227,7 @@ export async function getEnquiryStats(): Promise<EnquiryStats> {
       closed_count,
     };
   } catch (err) {
-    console.error('Failed to get enquiry stats:', err);
+    console.error("Failed to get enquiry stats:", err);
     return {
       total: 0,
       new_count: 0,

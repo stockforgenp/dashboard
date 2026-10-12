@@ -1,7 +1,7 @@
-import { apiRequest } from '../api/apiClient';
-import { Client } from './clientService';
-import { Enquiry } from './enquiryService';
-import { ClientReview } from './reviewService';
+import { apiRequest } from "../api/apiClient";
+import { Client } from "./clientService";
+import { Enquiry } from "./enquiryService";
+import { ClientReview } from "./reviewService";
 
 export interface AdminOverviewStats {
   clients: {
@@ -30,6 +30,6 @@ export interface AdminOverviewStats {
 }
 
 export async function getAdminOverviewStats(): Promise<AdminOverviewStats> {
-  const result = await apiRequest<AdminOverviewStats>('/admin/stats');
+  const result = await apiRequest<AdminOverviewStats>("/admin/stats");
   return result;
 }

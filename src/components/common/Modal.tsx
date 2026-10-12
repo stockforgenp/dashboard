@@ -1,9 +1,9 @@
 /**
  * Accessible Desktop Modal Dialog with Framer Motion physics
  */
-import React, { useEffect, ReactNode } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X } from 'lucide-react';
+import React, { useEffect, ReactNode } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { X } from "lucide-react";
 
 interface ModalProps {
   isOpen: boolean;
@@ -11,16 +11,16 @@ interface ModalProps {
   title: string;
   subtitle?: string;
   children: ReactNode;
-  maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl';
+  maxWidth?: "sm" | "md" | "lg" | "xl" | "2xl" | "3xl";
 }
 
 const widthClasses = {
-  sm: 'max-w-sm',
-  md: 'max-w-md',
-  lg: 'max-w-lg',
-  xl: 'max-w-xl',
-  '2xl': 'max-w-2xl',
-  '3xl': 'max-w-3xl',
+  sm: "max-w-sm",
+  md: "max-w-md",
+  lg: "max-w-lg",
+  xl: "max-w-xl",
+  "2xl": "max-w-2xl",
+  "3xl": "max-w-3xl",
 };
 
 export const Modal: React.FC<ModalProps> = ({
@@ -29,16 +29,16 @@ export const Modal: React.FC<ModalProps> = ({
   title,
   subtitle,
   children,
-  maxWidth = 'lg',
+  maxWidth = "lg",
 }) => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
+      if (e.key === "Escape" && isOpen) {
         onClose();
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
   return (
@@ -59,7 +59,7 @@ export const Modal: React.FC<ModalProps> = ({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 8 }}
             transition={{
-              type: 'spring',
+              type: "spring",
               damping: 26,
               stiffness: 380,
               mass: 0.6,
@@ -70,8 +70,12 @@ export const Modal: React.FC<ModalProps> = ({
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-800 shrink-0 bg-neutral-900/80">
               <div>
-                <h3 className="text-base font-semibold text-neutral-100 tracking-tight">{title}</h3>
-                {subtitle && <p className="text-xs text-neutral-400 mt-0.5">{subtitle}</p>}
+                <h3 className="text-base font-semibold text-neutral-100 tracking-tight">
+                  {title}
+                </h3>
+                {subtitle && (
+                  <p className="text-xs text-neutral-400 mt-0.5">{subtitle}</p>
+                )}
               </div>
               <motion.button
                 whileHover={{ scale: 1.08 }}

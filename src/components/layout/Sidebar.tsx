@@ -1,20 +1,10 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   LayoutDashboard,
-  Package,
-  ShoppingCart,
-  Boxes,
-  Receipt,
-  BarChart3,
-  Settings,
-  HardDrive,
   ShieldCheck,
   Keyboard,
-  ReceiptText,
-  Users,
-  CreditCard,
   MessageSquare,
   UserCheck,
   Star,
@@ -70,7 +60,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     };
   }, [currentTab]);
 
-
   const navItems: Array<{
     id: NavTab;
     label: string;
@@ -110,9 +99,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Brand Header */}
       <div className="h-14 px-5 flex items-center justify-between border-b border-neutral-800/80 shrink-0">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
-            <HardDrive className="w-4 h-4" />
-          </div>
+          <img
+            src="/icon.png"
+            alt="StockForge Logo"
+            className="w-8 h-8 rounded-lg object-contain shrink-0 shadow-sm shadow-emerald-500/20"
+          />
           {toggleSidebar && (
             <motion.div
               initial={{ opacity: 0, x: -6 }}

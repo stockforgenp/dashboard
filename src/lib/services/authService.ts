@@ -5,14 +5,14 @@ import {
   setStoredAdminUser,
   removeStoredAdminUser,
   getStoredToken,
-} from '../api/apiClient';
+} from "../api/apiClient";
 
 export interface AdminUser {
   id: string;
   email: string;
   name: string;
   phoneNumber?: string;
-  role: 'super_admin' | 'admin';
+  role: "super_admin" | "admin";
   createdAt?: string;
   updatedAt?: string;
 }
@@ -24,7 +24,7 @@ export interface AdminLoginInput {
 
 export interface AdminAuthResponse {
   token: string;
-  tokenType: 'Bearer';
+  tokenType: "Bearer";
   admin: AdminUser;
 }
 
@@ -33,8 +33,8 @@ export interface AdminAuthResponse {
  * POST /api/v1/admin/login
  */
 export async function loginAdmin(input: AdminLoginInput): Promise<AdminUser> {
-  const result = await apiRequest<AdminAuthResponse>('/admin/login', {
-    method: 'POST',
+  const result = await apiRequest<AdminAuthResponse>("/admin/login", {
+    method: "POST",
     body: JSON.stringify(input),
   });
 
@@ -53,7 +53,7 @@ export async function loginAdmin(input: AdminLoginInput): Promise<AdminUser> {
  * GET /api/v1/admin/me
  */
 export async function getAdminProfile(): Promise<AdminUser> {
-  const admin = await apiRequest<AdminUser>('/admin/me');
+  const admin = await apiRequest<AdminUser>("/admin/me");
   setStoredAdminUser(admin);
   return admin;
 }

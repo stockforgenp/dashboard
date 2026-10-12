@@ -1,9 +1,9 @@
 /**
  * Confirmation Dialog for destructive operations
  */
-import React from 'react';
-import { AlertTriangle } from 'lucide-react';
-import { Modal } from './Modal.tsx';
+import React from "react";
+import { AlertTriangle } from "lucide-react";
+import { Modal } from "./Modal.tsx";
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -22,8 +22,8 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   onConfirm,
   title,
   message,
-  confirmText = 'Confirm',
-  cancelText = 'Cancel',
+  confirmText = "Confirm",
+  cancelText = "Cancel",
   isDestructive = true,
 }) => {
   return (
@@ -31,7 +31,9 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
       <div className="flex gap-4">
         <div
           className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
-            isDestructive ? 'bg-rose-500/10 text-rose-400' : 'bg-amber-500/10 text-amber-400'
+            isDestructive
+              ? "bg-rose-500/10 text-rose-400"
+              : "bg-amber-500/10 text-amber-400"
           }`}
         >
           <AlertTriangle className="w-5 h-5" />
@@ -57,8 +59,8 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
           }}
           className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors ${
             isDestructive
-              ? 'bg-rose-600 hover:bg-rose-500 text-white'
-              : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+              ? "bg-rose-600 hover:bg-rose-500 text-white"
+              : "bg-emerald-600 hover:bg-emerald-500 text-white"
           }`}
         >
           {confirmText}

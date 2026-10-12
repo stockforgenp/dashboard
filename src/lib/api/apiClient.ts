@@ -124,10 +124,13 @@ export async function apiRequest<T = any>(
   }
 
   // The backend wraps responses in { success: true, message: string, data: ... }
-  if (responseData && typeof responseData === "object" && "data" in responseData) {
+  if (
+    responseData &&
+    typeof responseData === "object" &&
+    "data" in responseData
+  ) {
     return responseData.data as T;
   }
 
   return responseData as T;
 }
-

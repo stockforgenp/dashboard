@@ -1,4 +1,4 @@
-import { apiRequest } from '../api/apiClient';
+import { apiRequest } from "../api/apiClient";
 
 export interface ClientReview {
   id: string;
@@ -32,12 +32,12 @@ function normalizeReview(doc: any): ClientReview {
   const updatedAt = doc.updatedAt || doc.updated_at || createdAt;
 
   return {
-    id: doc.id || doc._id || '',
-    client_name: doc.clientName || doc.client_name || '',
+    id: doc.id || doc._id || "",
+    client_name: doc.clientName || doc.client_name || "",
     shop_name: doc.shopName || doc.shop_name || null,
     location: doc.location || null,
     rating: Number(doc.rating || 5),
-    review_text: doc.reviewText || doc.review_text || '',
+    review_text: doc.reviewText || doc.review_text || "",
     client_id: doc.clientId || doc.client_id || null,
     created_at: createdAt,
     updated_at: updatedAt,
@@ -59,7 +59,7 @@ export async function getAllClientReviews(filter?: {
   if (filter?.search) params.search = filter.search;
   if (filter?.clientId) params.clientId = filter.clientId;
 
-  const result = await apiRequest<any>('/reviews', { params });
+  const result = await apiRequest<any>("/reviews", { params });
   const list = Array.isArray(result) ? result : result.reviews || [];
   return list.map(normalizeReview);
 }
@@ -76,8 +76,8 @@ export async function createClientReview(
     clientId: input.client_id || undefined,
   };
 
-  const result = await apiRequest<any>('/reviews', {
-    method: 'POST',
+  const result = await apiRequest<any>("/reviews", {
+    method: "POST",
     body: JSON.stringify(payload),
   });
 
@@ -86,13 +86,13 @@ export async function createClientReview(
 
 export async function deleteClientReview(id: string): Promise<void> {
   await apiRequest(`/reviews/${id}`, {
-    method: 'DELETE',
+    method: "DELETE",
   });
 }
 
 export async function getClientReviewsStats(): Promise<ReviewStats> {
   try {
-    const res = await apiRequest<any>('/reviews', { params: { limit: 1000 } });
+    const res = await apiRequest<any>("/reviews", { params: { limit: 1000 } });
     if (res && res.stats) {
       return {
         total: res.stats.total || 0,
@@ -112,7 +112,7 @@ export async function getClientReviewsStats(): Promise<ReviewStats> {
 
     return { total: list.length, averageRating, fiveStarCount };
   } catch (err) {
-    console.error('Failed to get client reviews stats:', err);
+    console.error("Failed to get client reviews stats:", err);
     return { total: 0, averageRating: 5.0, fiveStarCount: 0 };
   }
 }

@@ -1,8 +1,8 @@
-import { apiRequest } from '../api/apiClient';
+import { apiRequest } from "../api/apiClient";
 
 export interface ClientSubscription {
   plan: string;
-  status: 'active' | 'expired' | 'trial' | 'grace_period' | 'cancelled';
+  status: "active" | "expired" | "trial" | "grace_period" | "cancelled";
   startDate: string;
   durationDays: number;
   expiryDate: string;
@@ -68,13 +68,13 @@ export interface ClientStats {
 function normalizeClient(doc: any): Client {
   return {
     ...doc,
-    id: doc.id || doc._id || '',
+    id: doc.id || doc._id || "",
     company_name: doc.shopName || doc.company_name || null,
-    client_type: doc.shopType || doc.client_type || 'Retail Store',
+    client_type: doc.shopType || doc.client_type || "Retail Store",
     pan_number: doc.pan_number || null,
     credit_limit: doc.credit_limit || 0,
     current_balance: doc.current_balance || 0,
-    status: doc.isActive ? 'active' : 'inactive',
+    status: doc.isActive ? "active" : "inactive",
     notes: doc.notes || null,
   };
 }
@@ -91,10 +91,10 @@ export async function getAllClients(filter?: {
     limit: filter?.limit || 100,
   };
   if (filter?.search) params.search = filter.search;
-  if (filter?.status && filter.status !== 'all') params.status = filter.status;
-  if (filter?.plan && filter.plan !== 'all') params.plan = filter.plan;
+  if (filter?.status && filter.status !== "all") params.status = filter.status;
+  if (filter?.plan && filter.plan !== "all") params.plan = filter.plan;
 
-  const result = await apiRequest<Client[]>('/clients', { params });
+  const result = await apiRequest<Client[]>("/clients", { params });
   return (Array.isArray(result) ? result : []).map(normalizeClient);
 }
 
@@ -107,18 +107,18 @@ export async function createClient(input: CreateClientInput): Promise<Client> {
   const payload = {
     name: input.name,
     email: input.email,
-    password: input.password || 'StockForge2026!',
+    password: input.password || "StockForge2026!",
     phone: input.phone,
     shopName: input.shopName || input.company_name,
-    shopType: input.shopType || input.client_type || 'Retail Store',
+    shopType: input.shopType || input.client_type || "Retail Store",
     address: input.address,
-    currencySymbol: input.currencySymbol || 'Rs.',
-    plan: input.plan || 'trial',
+    currencySymbol: input.currencySymbol || "Rs.",
+    plan: input.plan || "trial",
     trialDays: input.trialDays || 14,
   };
 
-  const result = await apiRequest<any>('/clients/register', {
-    method: 'POST',
+  const result = await apiRequest<any>("/clients/register", {
+    method: "POST",
     body: JSON.stringify(payload),
   });
 
@@ -140,11 +140,12 @@ export async function updateClient(
     payload.shopType = input.shopType || input.client_type;
   }
   if (input.address !== undefined) payload.address = input.address;
-  if (input.currencySymbol !== undefined) payload.currencySymbol = input.currencySymbol;
-  if (input.status !== undefined) payload.isActive = input.status === 'active';
+  if (input.currencySymbol !== undefined)
+    payload.currencySymbol = input.currencySymbol;
+  if (input.status !== undefined) payload.isActive = input.status === "active";
 
   const result = await apiRequest<Client>(`/clients/${id}`, {
-    method: 'PATCH',
+    method: "PATCH",
     body: JSON.stringify(payload),
   });
   return normalizeClient(result);
@@ -155,13 +156,13 @@ export async function toggleClientStatus(
   currentIsActive: boolean,
 ): Promise<Client> {
   return updateClient(id, {
-    status: currentIsActive ? 'inactive' : 'active',
+    status: currentIsActive ? "inactive" : "active",
   });
 }
 
 export async function deleteClient(id: string): Promise<void> {
   await apiRequest(`/clients/${id}`, {
-    method: 'DELETE',
+    method: "DELETE",
   });
 }
 
@@ -173,8 +174,8 @@ export async function extendClientSubscription(input: {
   paymentReference?: string;
   notes?: string;
 }): Promise<any> {
-  return apiRequest('/subscriptions/extend', {
-    method: 'POST',
+  return apiRequest("/subscriptions/extend", {
+    method: "POST",
     body: JSON.stringify(input),
   });
 }
@@ -183,8 +184,8 @@ export async function cancelClientSubscription(input: {
   clientId: string;
   reason?: string;
 }): Promise<any> {
-  return apiRequest('/subscriptions/cancel', {
-    method: 'POST',
+  return apiRequest("/subscriptions/cancel", {
+    method: "POST",
     body: JSON.stringify(input),
   });
 }
@@ -207,9 +208,9 @@ export async function getClientsStats(): Promise<ClientStats> {
     for (const c of clients) {
       if (c.isActive) active++;
       const subStatus = c.subscription?.status;
-      if (subStatus === 'trial') trial++;
-      else if (subStatus === 'expired') expired++;
-      else if (subStatus === 'cancelled') cancelled++;
+      if (subStatus === "trial") trial++;
+      else if (subStatus === "expired") expired++;
+      else if (subStatus === "cancelled") cancelled++;
     }
 
     return {
@@ -222,7 +223,7 @@ export async function getClientsStats(): Promise<ClientStats> {
       totalCreditBalance: 0,
     };
   } catch (err) {
-    console.error('Failed to get clients stats:', err);
+    console.error("Failed to get clients stats:", err);
     return {
       total: 0,
       active: 0,

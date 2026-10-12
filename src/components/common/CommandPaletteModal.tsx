@@ -32,7 +32,6 @@ import { MODIFIER_LABEL } from "../../lib/hooks/useGlobalShortcuts.ts";
 import { useTheme } from "../../context/ThemeContext.tsx";
 import { useLanguage } from "../../context/LanguageContext.tsx";
 
-
 interface CommandPaletteModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -75,7 +74,6 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       }, 50);
     }
   }, [isOpen]);
-
 
   // Base navigation & action items
   const baseItems: PaletteItem[] = useMemo(
@@ -219,7 +217,6 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         (item.shortcut && item.shortcut.toLowerCase().includes(q)),
     );
   }, [query, baseItems]);
-
 
   // Adjust selection when query changes
   useEffect(() => {
