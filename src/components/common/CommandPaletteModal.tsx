@@ -13,6 +13,7 @@ import {
   UserCheck,
   MessageSquare,
   Star,
+  Wallet,
 } from "lucide-react";
 import { NavTab } from "../layout/Sidebar.tsx";
 import { useTheme } from "../../context/ThemeContext.tsx";
@@ -65,6 +66,17 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         category: "Screens",
         action: () => {
           onNavigate("dashboard");
+          onClose();
+        },
+      },
+      {
+        id: "nav-finances",
+        title: "Finances (Income & Expenses)",
+        subtitle: "Track earnings, operational expenses, client payments, and net profit",
+        icon: Wallet,
+        category: "Screens",
+        action: () => {
+          onNavigate("finances");
           onClose();
         },
       },

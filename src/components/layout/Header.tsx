@@ -23,7 +23,11 @@ export const Header: React.FC<HeaderProps> = ({
       title: "Dashboard",
       subtitle: "Executive overview & key metrics",
     },
-
+    finances: {
+      title: "Finances & Cash Flow",
+      subtitle:
+        "Earnings, operational expenditures, client payments received, and net profit",
+    },
     clients: {
       title: "Registered Clients",
       subtitle:

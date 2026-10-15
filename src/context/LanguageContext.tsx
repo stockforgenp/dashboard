@@ -13,6 +13,7 @@ export interface LanguageContextType {
 
 const DEFAULT_LABELS: Record<string, string> = {
   nav_dashboard: "Dashboard",
+  nav_finances: "Finances",
   nav_clients: "Clients",
   nav_enquiries: "Leads & Enquiries",
   nav_reviews: "Client Reviews",

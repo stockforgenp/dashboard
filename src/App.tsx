@@ -20,6 +20,7 @@ import { useTheme } from "./context/ThemeContext.tsx";
 import { useAuth } from "./context/AuthContext.tsx";
 import { AuthView } from "./pages/AuthView.tsx";
 import { DashboardView } from "./pages/DashboardView.tsx";
+import { FinancesView } from "./pages/FinancesView.tsx";
 import { ClientsView } from "./pages/ClientsView.tsx";
 import { EnquiriesView } from "./pages/EnquiriesView.tsx";
 import { ClientReviewsView } from "./pages/ClientReviewsView.tsx";
@@ -35,8 +36,10 @@ export default function App() {
     const path = location.pathname.replace(/^\//, "").split("/")[0];
     if (path === "registered-clients") return "clients";
     if (path === "client-reviews") return "reviews";
+    if (path === "expenses" || path === "income") return "finances";
     const validTabs: NavTab[] = [
       "dashboard",
+      "finances",
       "clients",
       "enquiries",
       "reviews",
@@ -126,11 +129,11 @@ export default function App() {
                 className="h-full"
               >
                 <Routes location={location}>
-                  <Route
-                    path="/"
-                    element={<Navigate to="/dashboard" replace />}
-                  />
+                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
                   <Route path="/dashboard" element={<DashboardView />} />
+                  <Route path="/finances" element={<FinancesView />} />
+                  <Route path="/income" element={<FinancesView />} />
+                  <Route path="/expenses" element={<FinancesView />} />
                   <Route path="/clients" element={<ClientsView />} />
                   <Route path="/registered-clients" element={<ClientsView />} />
                   <Route path="/enquiries" element={<EnquiriesView />} />

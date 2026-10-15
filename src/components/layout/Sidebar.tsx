@@ -13,13 +13,14 @@ import {
   PanelLeftClose,
   Store,
   LogOut,
+  Wallet,
 } from "lucide-react";
 import { useTheme } from "../../context/ThemeContext.tsx";
 import { useLanguage } from "../../context/LanguageContext.tsx";
 import { useAuth } from "../../context/AuthContext.tsx";
 import { getEnquiryStats } from "../../lib/services/enquiryService.ts";
 
-export type NavTab = "dashboard" | "clients" | "enquiries" | "reviews";
+export type NavTab = "dashboard" | "clients" | "finances" | "enquiries" | "reviews";
 
 interface SidebarProps {
   currentTab: NavTab;
@@ -61,6 +62,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: "dashboard",
       label: t("nav_dashboard"),
       icon: LayoutDashboard,
+    },
+    {
+      id: "finances",
+      label: t("nav_finances", "Finances"),
+      icon: Wallet,
     },
     {
       id: "clients",

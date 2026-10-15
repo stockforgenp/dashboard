@@ -12,4 +12,6 @@ export * from "./ClientOnboardingModal.tsx";
 export * from "./LeadEnquiryModal.tsx";
 export * from "./ConvertLeadModal.tsx";
 export * from "./ClientReviewModal.tsx";
+export * from "./FinanceEntryModal.tsx";
+
 
