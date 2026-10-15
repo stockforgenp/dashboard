@@ -2,8 +2,10 @@
  * Shared Table & Card ActionMenu Component
  * Displays a dropdown menu with multiple customizable actions:
  * label, icon, color, divider, and click handlers.
+ * Renders via React Portal to prevent clipping by overflow-hidden table containers.
  */
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { MoreVertical, MoreHorizontal } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -108,20 +110,71 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
   title = "Actions",
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState<{
+    top: number;
+    left: number;
+    openUp: boolean;
+  }>({
+    top: 0,
+    left: 0,
+    openUp: false,
+  });
+
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const validItems = items.filter(
     (item): item is ActionItem => Boolean(item) && !(item as ActionItem).hidden,
   );
 
-  // Close dropdown on outside click or scroll
+  // Compute fixed screen coordinates dynamically so menu is never clipped by containers
+  const updatePosition = useCallback(() => {
+    if (!buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    const menuWidth = 180;
+    const menuEstimatedHeight = validItems.length * 36 + 16;
+    const windowHeight = window.innerHeight;
+    const windowWidth = window.innerWidth;
+
+    // Determine if menu should open upward or downward
+    const openUp =
+      rect.bottom + menuEstimatedHeight > windowHeight &&
+      rect.top > menuEstimatedHeight;
+
+    let left = align === "right" ? rect.right - menuWidth : rect.left;
+
+    // Viewport horizontal clamping
+    if (left + menuWidth > windowWidth - 12) {
+      left = windowWidth - menuWidth - 12;
+    }
+    if (left < 12) {
+      left = 12;
+    }
+
+    const top = openUp ? rect.top - 4 : rect.bottom + 4;
+
+    setCoords({ top, left, openUp });
+  }, [align, validItems.length]);
+
+  const handleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!isOpen) {
+      updatePosition();
+    }
+    setIsOpen((prev) => !prev);
+  };
+
+  // Close dropdown on outside click, escape key, or window scroll/resize
   useEffect(() => {
     if (!isOpen) return;
 
     const handlePointerDown = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node;
       if (
-        containerRef.current &&
-        !containerRef.current.contains(e.target as Node)
+        buttonRef.current &&
+        !buttonRef.current.contains(target) &&
+        menuRef.current &&
+        !menuRef.current.contains(target)
       ) {
         setIsOpen(false);
       }
@@ -133,14 +186,22 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
       }
     };
 
+    const handleScrollOrResize = () => {
+      setIsOpen(false);
+    };
+
     document.addEventListener("mousedown", handlePointerDown);
     document.addEventListener("touchstart", handlePointerDown);
     document.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("resize", handleScrollOrResize);
+    window.addEventListener("scroll", handleScrollOrResize, true);
 
     return () => {
       document.removeEventListener("mousedown", handlePointerDown);
       document.removeEventListener("touchstart", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("resize", handleScrollOrResize);
+      window.removeEventListener("scroll", handleScrollOrResize, true);
     };
   }, [isOpen]);
 
@@ -153,85 +214,97 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({
     (orientation === "horizontal" ? MoreHorizontal : MoreVertical);
 
   return (
-    <div
-      ref={containerRef}
-      className={`relative inline-block text-left ${className}`}
-      onClick={(e) => e.stopPropagation()}
-    >
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          setIsOpen((prev) => !prev);
-        }}
-        className={`inline-flex items-center justify-center gap-1.5 rounded-lg border transition-colors cursor-pointer ${
-          isOpen
-            ? "bg-neutral-800 text-neutral-100 border-neutral-700 shadow-sm"
-            : "text-neutral-400 hover:text-neutral-200 bg-neutral-900/60 hover:bg-neutral-800 border-neutral-800/80 hover:border-neutral-700"
-        } ${
-          triggerSize === "sm"
-            ? "p-1.5 text-xs"
-            : "px-2.5 py-1.5 text-xs font-medium"
-        }`}
-        title={title}
-        aria-label={title}
-        aria-expanded={isOpen}
+    <>
+      <div
+        className={`relative inline-block text-left ${className}`}
+        onClick={(e) => e.stopPropagation()}
       >
-        <TriggerIcon className="w-4 h-4 shrink-0" />
-        {triggerLabel && <span className="truncate">{triggerLabel}</span>}
-      </button>
+        <button
+          ref={buttonRef}
+          type="button"
+          onClick={handleToggle}
+          className={`inline-flex items-center justify-center gap-1.5 rounded-lg border transition-colors cursor-pointer ${
+            isOpen
+              ? "bg-neutral-800 text-neutral-100 border-neutral-700 shadow-sm"
+              : "text-neutral-400 hover:text-neutral-200 bg-neutral-900/60 hover:bg-neutral-800 border-neutral-800/80 hover:border-neutral-700"
+          } ${
+            triggerSize === "sm"
+              ? "p-1.5 text-xs"
+              : "px-2.5 py-1.5 text-xs font-medium"
+          }`}
+          title={title}
+          aria-label={title}
+          aria-expanded={isOpen}
+        >
+          <TriggerIcon className="w-4 h-4 shrink-0" />
+          {triggerLabel && <span className="truncate">{triggerLabel}</span>}
+        </button>
+      </div>
 
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: -4 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: -4 }}
-            transition={{ duration: 0.12, ease: "easeOut" }}
-            className={`absolute z-50 mt-1.5 w-44 rounded-xl bg-neutral-900 border border-neutral-800/90 shadow-2xl py-1 text-xs focus:outline-hidden ${
-              align === "right" ? "right-0" : "left-0"
-            }`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {validItems.map((item, index) => {
-              const Icon = item.icon;
-              const colorStyle = COLOR_STYLES[item.color || "default"];
+      {typeof document !== "undefined" &&
+        createPortal(
+          <AnimatePresence>
+            {isOpen && (
+              <motion.div
+                ref={menuRef}
+                initial={{ opacity: 0, scale: 0.95, y: coords.openUp ? 4 : -4 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: coords.openUp ? 4 : -4 }}
+                transition={{ duration: 0.12, ease: "easeOut" }}
+                style={{
+                  position: "fixed",
+                  top: coords.openUp ? undefined : `${coords.top}px`,
+                  bottom: coords.openUp
+                    ? `${window.innerHeight - coords.top}px`
+                    : undefined,
+                  left: `${coords.left}px`,
+                  width: "180px",
+                  zIndex: 9999,
+                }}
+                className="rounded-xl bg-neutral-900 border border-neutral-800 shadow-2xl py-1 text-xs select-none focus:outline-hidden"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {validItems.map((item, index) => {
+                  const Icon = item.icon;
+                  const colorStyle = COLOR_STYLES[item.color || "default"];
 
-              return (
-                <React.Fragment key={item.id || `${item.label}-${index}`}>
-                  {item.divider && (
-                    <div className="my-1 border-t border-neutral-800/80" />
-                  )}
-                  <button
-                    type="button"
-                    disabled={item.disabled}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (item.disabled) return;
-                      setIsOpen(false);
-                      item.onClick(e);
-                    }}
-                    className={`w-full text-left flex items-center gap-2.5 px-3 py-2 transition-colors cursor-pointer group ${
-                      item.disabled
-                        ? "opacity-40 cursor-not-allowed text-neutral-500"
-                        : `${colorStyle.text} ${colorStyle.hover}`
-                    }`}
-                  >
-                    {Icon && (
-                      <Icon
-                        className={`w-4 h-4 shrink-0 transition-colors ${
-                          item.disabled ? "text-neutral-600" : colorStyle.icon
+                  return (
+                    <React.Fragment key={item.id || `${item.label}-${index}`}>
+                      {item.divider && (
+                        <div className="my-1 border-t border-neutral-800/80" />
+                      )}
+                      <button
+                        type="button"
+                        disabled={item.disabled}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (item.disabled) return;
+                          setIsOpen(false);
+                          item.onClick(e);
+                        }}
+                        className={`w-full text-left flex items-center gap-2.5 px-3 py-2 transition-colors cursor-pointer group ${
+                          item.disabled
+                            ? "opacity-40 cursor-not-allowed text-neutral-500"
+                            : `${colorStyle.text} ${colorStyle.hover}`
                         }`}
-                      />
-                    )}
-                    <span className="truncate font-medium">{item.label}</span>
-                  </button>
-                </React.Fragment>
-              );
-            })}
-          </motion.div>
+                      >
+                        {Icon && (
+                          <Icon
+                            className={`w-4 h-4 shrink-0 transition-colors ${
+                              item.disabled ? "text-neutral-600" : colorStyle.icon
+                            }`}
+                          />
+                        )}
+                        <span className="truncate font-medium">{item.label}</span>
+                      </button>
+                    </React.Fragment>
+                  );
+                })}
+              </motion.div>
+            )}
+          </AnimatePresence>,
+          document.body,
         )}
-      </AnimatePresence>
-    </div>
+    </>
   );
 };
