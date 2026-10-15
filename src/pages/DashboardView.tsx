@@ -5,7 +5,7 @@
  *
  * NOTE: The reviews in this dashboard are strictly internal and NOT connected to the public website.
  */
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   Users,
@@ -48,6 +48,8 @@ import {
   ClientReview,
 } from "../lib/services/reviewService";
 import { formatDate } from "../lib/utils/format";
+import { Table, Column } from "../components/common/Table";
+import { Skeleton } from "../components/common/Skeleton";
 
 type DashboardSectionTab = "all" | "clients" | "enquiries" | "reviews";
 
@@ -60,6 +62,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 }) => {
   const { isNepali, formatNumberByLang } = useLanguage();
   const { showToast } = useToast();
+
+  const [isLoading, setIsLoading] = useState(true);
 
   // Navigation tab state inside Dashboard
   const [activeDashboardTab, setActiveDashboardTab] =
@@ -107,6 +111,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [deletingReviewId, setDeletingReviewId] = useState<string | null>(null);
 
   const refreshData = useCallback(async () => {
+    setIsLoading(true);
     try {
       const [cStats, eStats, rStats, allC, allE, allR] = await Promise.all([
         getClientsStats(),
@@ -126,6 +131,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       setReviews(allR);
     } catch (e) {
       console.error("Error refreshing dashboard:", e);
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
@@ -225,6 +232,104 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       showToast((err as Error).message || "Failed to delete review", "error");
     }
   };
+
+  const recentClientColumns = useMemo<Column<Client>[]>(
+    () => [
+      {
+        id: "client",
+        header: isNepali ? "ग्राहक तथा पसल" : "Client & Store",
+        render: (c) => (
+          <div>
+            <div className="font-bold text-neutral-100 text-xs truncate">
+              {c.name}
+            </div>
+            <div className="text-[11px] text-neutral-400 truncate">
+              {c.company_name || c.client_type}
+            </div>
+          </div>
+        ),
+      },
+      {
+        id: "contact",
+        header: isNepali ? "सम्पर्क" : "Contact",
+        render: (c) => (
+          <div className="text-xs font-mono text-neutral-300">{c.phone}</div>
+        ),
+      },
+      {
+        id: "status",
+        header: isNepali ? "स्थिति" : "Status",
+        align: "right",
+        render: (c) => (
+          <span
+            className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+              c.status === "active"
+                ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+                : "bg-neutral-800 text-neutral-400 border border-neutral-700"
+            }`}
+          >
+            {(c.status || "active").toUpperCase()}
+          </span>
+        ),
+      },
+    ],
+    [isNepali],
+  );
+
+  const recentEnquiryColumns = useMemo<Column<Enquiry>[]>(
+    () => [
+      {
+        id: "lead",
+        header: isNepali ? "अनुरोधकर्ता" : "Lead",
+        render: (e) => (
+          <div>
+            <div className="font-bold text-neutral-100 text-xs truncate">
+              {e.full_name}
+            </div>
+            <div className="text-[10px] text-neutral-400 font-mono">
+              {e.reference_id}
+            </div>
+          </div>
+        ),
+      },
+      {
+        id: "contact",
+        header: isNepali ? "सम्पर्क र विवरण" : "Contact & Message",
+        render: (e) => (
+          <div>
+            <div className="text-xs font-mono text-neutral-300">{e.phone}</div>
+            <div className="text-[11px] text-neutral-400 truncate max-w-[140px]">
+              {e.subject || e.message}
+            </div>
+          </div>
+        ),
+      },
+      {
+        id: "status",
+        header: isNepali ? "स्थिति" : "Status",
+        align: "right",
+        render: (e) => (
+          <div>
+            <span
+              className={`inline-block px-2 py-0.5 text-[10px] font-semibold rounded-full border ${
+                e.status === "new"
+                  ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
+                  : e.status === "converted"
+                    ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                    : "bg-neutral-800 text-neutral-300 border-neutral-700"
+              }`}
+            >
+              {e.status.toUpperCase()}
+            </span>
+            <div className="text-[9px] text-neutral-500 mt-0.5 font-mono">
+              {formatDate(e.created_at)}
+            </div>
+          </div>
+        ),
+      },
+    ],
+    [isNepali],
+  );
 
   const navMenuItems: Array<{
     id: DashboardSectionTab;
@@ -396,9 +501,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
           </div>
           <div className="mt-4">
-            <div className="text-3xl font-extrabold text-neutral-100 font-mono tabular-nums">
-              {formatNumberByLang(clientStats.total)}
-            </div>
+            {isLoading ? (
+              <Skeleton width="70px" height="32px" className="my-0.5" />
+            ) : (
+              <div className="text-3xl font-extrabold text-neutral-100 font-mono tabular-nums">
+                {formatNumberByLang(clientStats.total)}
+              </div>
+            )}
             <div className="text-[11px] text-emerald-400/90 mt-1 flex items-center justify-between">
               <span>
                 {formatNumberByLang(clientStats.active)}{" "}
@@ -429,9 +538,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
           </div>
           <div className="mt-4">
-            <div className="text-2xl sm:text-3xl font-extrabold text-emerald-400 font-mono tabular-nums">
-              {formatNumberByLang(clientStats.active)}
-            </div>
+            {isLoading ? (
+              <Skeleton width="60px" height="32px" className="my-0.5" />
+            ) : (
+              <div className="text-2xl sm:text-3xl font-extrabold text-emerald-400 font-mono tabular-nums">
+                {formatNumberByLang(clientStats.active)}
+              </div>
+            )}
             <div className="text-[11px] text-neutral-400 mt-1 flex items-center justify-between">
               <span>
                 {formatNumberByLang(clientStats.trial)}{" "}
@@ -464,9 +577,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
           </div>
           <div className="mt-4">
-            <div className="text-3xl font-extrabold text-neutral-100 font-mono tabular-nums">
-              {formatNumberByLang(enquiryStats.total)}
-            </div>
+            {isLoading ? (
+              <Skeleton width="60px" height="32px" className="my-0.5" />
+            ) : (
+              <div className="text-3xl font-extrabold text-neutral-100 font-mono tabular-nums">
+                {formatNumberByLang(enquiryStats.total)}
+              </div>
+            )}
             <div className="text-[11px] text-neutral-400 mt-1 flex items-center justify-between">
               <span>
                 {formatNumberByLang(enquiryStats.new_count)}{" "}
@@ -499,14 +616,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
           </div>
           <div className="mt-4">
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-extrabold text-amber-300 font-mono tabular-nums">
-                {reviewStats.averageRating.toFixed(1)}
-              </span>
-              <span className="text-xs text-amber-400 font-medium flex items-center">
-                {"★".repeat(5)}
-              </span>
-            </div>
+            {isLoading ? (
+              <Skeleton width="80px" height="32px" className="my-0.5" />
+            ) : (
+              <div className="flex items-baseline gap-2">
+                <span className="text-3xl font-extrabold text-amber-300 font-mono tabular-nums">
+                  {reviewStats.averageRating.toFixed(1)}
+                </span>
+                <span className="text-xs text-amber-400 font-medium flex items-center">
+                  {"★".repeat(5)}
+                </span>
+              </div>
+            )}
             <div className="text-[11px] text-neutral-400 mt-1 flex items-center justify-between">
               <span>
                 {formatNumberByLang(reviewStats.total)}{" "}
@@ -553,62 +674,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </button>
               </div>
 
-              {/* Recent Clients List */}
-              <div className="mt-4 divide-y divide-neutral-800/80">
-                {recentClients.length === 0 ? (
-                  <div className="py-8 text-center text-xs text-neutral-500">
-                    {isNepali
+              {/* Recent Clients Table */}
+              <div className="mt-4">
+                <Table<Client>
+                  data={recentClients}
+                  columns={recentClientColumns}
+                  keyExtractor={(client) => client.id}
+                  isLoading={isLoading}
+                  skeletonRows={4}
+                  compact={true}
+                  onRowClick={() => onNavigateToTab("clients")}
+                  emptyState={{
+                    title: isNepali ? "कुनै ग्राहक फेला परेन" : "No Registered Clients",
+                    description: isNepali
                       ? "हालसम्म कुनै दर्ता ग्राहक थपिएको छैन।"
-                      : "No registered clients found."}
-                  </div>
-                ) : (
-                  recentClients.map((client) => (
-                    <div
-                      key={client.id}
-                      onClick={() => onNavigateToTab("clients")}
-                      className="py-3 px-2 -mx-2 rounded-xl hover:bg-neutral-800/50 flex items-center justify-between transition-colors cursor-pointer group"
-                    >
-                      <div className="min-w-0 pr-3">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-neutral-200 group-hover:text-emerald-400 transition-colors truncate">
-                            {client.name}
-                          </span>
-                          {client.company_name && (
-                            <span className="text-[10px] text-neutral-400 truncate max-w-[120px]">
-                              ({client.company_name})
-                            </span>
-                          )}
-                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-neutral-800 text-neutral-300 border border-neutral-700 font-mono">
-                            {client.client_type}
-                          </span>
-                        </div>
-                        <div className="text-[11px] text-neutral-500 flex items-center gap-3 mt-0.5">
-                          <span className="flex items-center gap-1">
-                            <Phone className="w-3 h-3 text-neutral-600" />
-                            <span className="font-mono">{client.phone}</span>
-                          </span>
-                          {client.address && (
-                            <span className="truncate max-w-[140px] text-neutral-400">
-                              {client.address}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="text-right shrink-0">
-                        <span
-                          className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                            client.status === "active"
-                              ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
-                              : "bg-neutral-800 text-neutral-400 border border-neutral-700"
-                          }`}
-                        >
-                          {(client.status || "active").toUpperCase()}
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                )}
+                      : "No registered clients found in the directory yet.",
+                  }}
+                />
               </div>
             </div>
 
@@ -659,65 +741,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </button>
               </div>
 
-              {/* Recent Enquiries List */}
-              <div className="mt-4 divide-y divide-neutral-800/80">
-                {recentEnquiries.length === 0 ? (
-                  <div className="py-8 text-center text-xs text-neutral-500">
-                    {isNepali
+              {/* Recent Enquiries Table */}
+              <div className="mt-4">
+                <Table<Enquiry>
+                  data={recentEnquiries}
+                  columns={recentEnquiryColumns}
+                  keyExtractor={(enquiry) => enquiry.id}
+                  isLoading={isLoading}
+                  skeletonRows={4}
+                  compact={true}
+                  onRowClick={() => onNavigateToTab("enquiries")}
+                  emptyState={{
+                    title: isNepali ? "कुनै नयाँ सोधपुछ छैन" : "No Enquiries Logged",
+                    description: isNepali
                       ? "हालसम्म कुनै नयाँ सोधपुछ छैन।"
-                      : "No enquiries logged yet."}
-                  </div>
-                ) : (
-                  recentEnquiries.map((enquiry) => (
-                    <div
-                      key={enquiry.id}
-                      onClick={() => onNavigateToTab("enquiries")}
-                      className="py-3 px-2 -mx-2 rounded-xl hover:bg-neutral-800/50 flex items-center justify-between transition-colors cursor-pointer group"
-                    >
-                      <div className="min-w-0 pr-3">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-neutral-200 group-hover:text-teal-400 transition-colors truncate">
-                            {enquiry.full_name}
-                          </span>
-                          {enquiry.shop_name && (
-                            <span className="text-[10px] text-neutral-400 truncate max-w-[120px]">
-                              ({enquiry.shop_name})
-                            </span>
-                          )}
-                          <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-neutral-800 text-neutral-300 border border-neutral-700">
-                            {enquiry.reference_id}
-                          </span>
-                        </div>
-                        <div className="text-[11px] text-neutral-500 flex items-center gap-3 mt-0.5">
-                          <span className="flex items-center gap-1 font-mono">
-                            <Phone className="w-3 h-3 text-neutral-600" />
-                            <span>{enquiry.phone}</span>
-                          </span>
-                          <span className="truncate max-w-[150px] text-neutral-400">
-                            {enquiry.subject || enquiry.message}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="text-right shrink-0">
-                        <span
-                          className={`inline-block px-2 py-0.5 text-[10px] font-semibold rounded-full border ${
-                            enquiry.status === "new"
-                              ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
-                              : enquiry.status === "converted"
-                                ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
-                                : "bg-neutral-800 text-neutral-300 border-neutral-700"
-                          }`}
-                        >
-                          {enquiry.status.toUpperCase()}
-                        </span>
-                        <div className="text-[9px] text-neutral-500 mt-0.5 font-mono">
-                          {formatDate(enquiry.created_at)}
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
+                      : "No customer inquiries or demo requests recorded yet.",
+                  }}
+                />
               </div>
             </div>
 

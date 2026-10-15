@@ -23,7 +23,8 @@ import { useLanguage } from "./context/LanguageContext.tsx";
 import { useAuth } from "./context/AuthContext.tsx";
 import { AuthView } from "./pages/AuthView.tsx";
 import { DashboardView } from "./pages/DashboardView.tsx";
-import { ClientsEnquiriesView } from "./pages/ClientsEnquiriesView.tsx";
+import { ClientsView } from "./pages/ClientsView.tsx";
+import { EnquiriesView } from "./pages/EnquiriesView.tsx";
 import { ClientReviewsView } from "./pages/ClientReviewsView.tsx";
 
 export default function App() {
@@ -162,14 +163,9 @@ export default function App() {
                     path="/dashboard"
                     element={<DashboardView onNavigateToTab={handleNavigate} />}
                   />
-                  <Route
-                    path="/clients"
-                    element={<ClientsEnquiriesView initialTab="clients" />}
-                  />
-                  <Route
-                    path="/enquiries"
-                    element={<ClientsEnquiriesView initialTab="enquiries" />}
-                  />
+                  <Route path="/clients" element={<ClientsView />} />
+                  <Route path="/registered-clients" element={<ClientsView />} />
+                  <Route path="/enquiries" element={<EnquiriesView />} />
                   <Route
                     path="/reviews"
                     element={
