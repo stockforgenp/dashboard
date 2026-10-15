@@ -4,7 +4,6 @@ import { motion } from "framer-motion";
 import {
   LayoutDashboard,
   ShieldCheck,
-  Keyboard,
   MessageSquare,
   UserCheck,
   Star,
@@ -12,11 +11,9 @@ import {
   Moon,
   PanelLeftOpen,
   PanelLeftClose,
-  Languages,
   Store,
   LogOut,
 } from "lucide-react";
-import { MODIFIER_LABEL } from "../../lib/hooks/useGlobalShortcuts.ts";
 import { useTheme } from "../../context/ThemeContext.tsx";
 import { useLanguage } from "../../context/LanguageContext.tsx";
 import { useAuth } from "../../context/AuthContext.tsx";
@@ -27,7 +24,6 @@ export type NavTab = "dashboard" | "clients" | "enquiries" | "reviews";
 interface SidebarProps {
   currentTab: NavTab;
   onSelectTab: (tab: NavTab) => void;
-  onOpenShortcuts?: () => void;
   toggleSidebar: boolean;
   setToggleSidebar: () => void;
 }
@@ -35,12 +31,11 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({
   currentTab,
   onSelectTab,
-  onOpenShortcuts,
   toggleSidebar,
   setToggleSidebar,
 }) => {
   const { toggleTheme, isDark } = useTheme();
-  const { t, toggleLanguage, isNepali } = useLanguage();
+  const { t } = useLanguage();
   const { currentShop, logout } = useAuth();
   const [enquiryNewCount, setEnquiryNewCount] = React.useState(0);
 
@@ -60,29 +55,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
     id: NavTab;
     label: string;
     icon: React.ElementType;
-    shortcut: string;
     badge?: number;
   }> = [
     {
       id: "dashboard",
       label: t("nav_dashboard"),
       icon: LayoutDashboard,
-      shortcut: `${MODIFIER_LABEL}+D`,
     },
     {
       id: "clients",
       label: t("nav_clients"),
       icon: UserCheck,
-      shortcut: "Alt+C",
     },
     {
       id: "enquiries",
       label: t("nav_enquiries"),
       icon: MessageSquare,
-      shortcut: "Alt+Q",
       badge: enquiryNewCount > 0 ? enquiryNewCount : undefined,
     },
-    { id: "reviews", label: t("nav_reviews"), icon: Star, shortcut: "Alt+R" },
+    { id: "reviews", label: t("nav_reviews"), icon: Star },
   ];
 
   return (
@@ -169,22 +160,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <span className="truncate">{item.label}</span>
                 )}
               </div>
-              {toggleSidebar && (
+              {toggleSidebar && item.badge !== undefined && (
                 <div className="relative z-10 flex items-center gap-1.5 shrink-0">
-                  {item.badge !== undefined && (
-                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-semibold">
-                      {item.badge}
-                    </span>
-                  )}
-                  <kbd
-                    className={`text-[9px] font-mono px-1.5 py-0.5 rounded border transition-opacity ${
-                      isActive
-                        ? "bg-neutral-900/80 text-neutral-300 border-neutral-700/80"
-                        : "bg-neutral-900 text-neutral-500 border-neutral-800 opacity-60 group-hover:opacity-100"
-                    }`}
-                  >
-                    {item.shortcut}
-                  </kbd>
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-semibold">
+                    {item.badge}
+                  </span>
                 </div>
               )}
             </Link>
@@ -192,34 +172,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         })}
       </nav>
 
-      {/* Language Switcher (EN <-> NP) */}
-      <div className="px-3 py-1.5 border-t border-neutral-800/80 bg-neutral-950 shrink-0">
-        <motion.button
-          whileHover={{ scale: 1.01 }}
-          whileTap={{ scale: 0.97 }}
-          onClick={toggleLanguage}
-          className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs text-neutral-300 hover:text-neutral-100 hover:bg-neutral-900 border border-neutral-800/60 hover:border-neutral-700 transition-colors cursor-pointer group"
-          title={isNepali ? "Switch to English" : "नेपाली भाषामा बदल्नुहोस्"}
-        >
-          <div className="flex items-center gap-2 min-w-0">
-            <Languages className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            {toggleSidebar && (
-              <span className="truncate font-medium">
-                {isNepali ? "नेपाली (NP)" : "English (EN)"}
-              </span>
-            )}
-          </div>
-          {toggleSidebar ? (
-            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shrink-0">
-              {isNepali ? "EN" : "नेपाली"}
-            </span>
-          ) : (
-            <span className="text-[9px] font-mono font-bold text-emerald-400">
-              {isNepali ? "NP" : "EN"}
-            </span>
-          )}
-        </motion.button>
-      </div>
 
       {/* Theme Toggle Button */}
       <div className="px-3 py-1.5 border-t border-neutral-800/80 bg-neutral-950 shrink-0">
@@ -250,29 +202,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </motion.button>
       </div>
 
-      {/* Keyboard Shortcuts Trigger Button */}
-      {onOpenShortcuts && (
-        <div className="px-3 py-2 border-t border-neutral-800/80 bg-neutral-950 shrink-0">
-          <motion.button
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.97 }}
-            onClick={onOpenShortcuts}
-            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900 border border-neutral-800/60 hover:border-neutral-700 transition-colors cursor-pointer"
-          >
-            <div className="flex items-center gap-2 min-w-0">
-              <Keyboard className="w-3.5 h-3.5 text-neutral-500 shrink-0" />
-              {toggleSidebar && (
-                <span className="truncate">{t("nav_shortcuts")}</span>
-              )}
-            </div>
-            {toggleSidebar && (
-              <kbd className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-neutral-900 text-neutral-400 border border-neutral-800 shrink-0">
-                ?
-              </kbd>
-            )}
-          </motion.button>
-        </div>
-      )}
 
       {/* Shop Account & Logout */}
       {currentShop && (
@@ -298,11 +227,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 type="button"
                 onClick={logout}
                 className="p-1 text-neutral-400 hover:text-rose-400 hover:bg-neutral-800 rounded transition-colors cursor-pointer shrink-0"
-                title={
-                  isNepali
-                    ? "पसल खाताबाट बाहिरिनुहोस् (Logout)"
-                    : "Log out of shop"
-                }
+                title="Log out of shop"
               >
                 <LogOut className="w-3.5 h-3.5" />
               </button>

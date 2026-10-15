@@ -15,11 +15,8 @@ import { ToastProvider } from "./context/ToastContext.tsx";
 import { Sidebar, NavTab } from "./components/layout/Sidebar.tsx";
 import { Header } from "./components/layout/Header.tsx";
 import { Loader2 } from "lucide-react";
-import { useGlobalShortcuts } from "./lib/hooks/useGlobalShortcuts.ts";
-import { ShortcutsHelpModal } from "./components/common/ShortcutsHelpModal.tsx";
 import { CommandPaletteModal } from "./components/common/CommandPaletteModal.tsx";
 import { useTheme } from "./context/ThemeContext.tsx";
-import { useLanguage } from "./context/LanguageContext.tsx";
 import { useAuth } from "./context/AuthContext.tsx";
 import { AuthView } from "./pages/AuthView.tsx";
 import { DashboardView } from "./pages/DashboardView.tsx";
@@ -29,7 +26,6 @@ import { ClientReviewsView } from "./pages/ClientReviewsView.tsx";
 
 export default function App() {
   const { toggleTheme } = useTheme();
-  const { toggleLanguage, language } = useLanguage();
   const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -48,12 +44,7 @@ export default function App() {
     return validTabs.includes(path as NavTab) ? (path as NavTab) : "dashboard";
   }, [location.pathname]);
 
-  const effectiveCurrencySymbol = useMemo(() => {
-    return language === "np" ? "रु." : "Rs.";
-  }, [language]);
-
-  // Power user modal states
-  const [isShortcutsHelpOpen, setIsShortcutsHelpOpen] = useState(false);
+  // Command palette and sidebar states
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [toggleSidebar, setToggleSidebar] = useState(false);
 
@@ -63,24 +54,6 @@ export default function App() {
     },
     [navigate],
   );
-
-  // Wire up global keyboard shortcuts across the app
-  useGlobalShortcuts({
-    onNavigate: handleNavigate,
-    onOpenCommandPalette: () => {
-      setIsCommandPaletteOpen((prev) => !prev);
-    },
-    onOpenShortcutsHelp: () => {
-      setIsShortcutsHelpOpen(true);
-    },
-    onCloseModals: () => {
-      setIsCommandPaletteOpen(false);
-      setIsShortcutsHelpOpen(false);
-    },
-    onOpenCreateProduct: () => {},
-    onToggleTheme: toggleTheme,
-    onToggleLanguage: toggleLanguage,
-  });
 
   if (isAuthLoading) {
     return (
@@ -131,7 +104,6 @@ export default function App() {
           onSelectTab={handleNavigate}
           toggleSidebar={toggleSidebar}
           setToggleSidebar={() => setToggleSidebar((prev) => !prev)}
-          onOpenShortcuts={() => setIsShortcutsHelpOpen(true)}
         />
 
         {/* Main Content Area */}
@@ -140,7 +112,6 @@ export default function App() {
           <Header
             currentTab={currentTab}
             onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
-            onOpenShortcutsHelp={() => setIsShortcutsHelpOpen(true)}
           />
 
           {/* Active View Container with React Router Routes */}
@@ -159,24 +130,14 @@ export default function App() {
                     path="/"
                     element={<Navigate to="/dashboard" replace />}
                   />
-                  <Route
-                    path="/dashboard"
-                    element={<DashboardView onNavigateToTab={handleNavigate} />}
-                  />
+                  <Route path="/dashboard" element={<DashboardView />} />
                   <Route path="/clients" element={<ClientsView />} />
                   <Route path="/registered-clients" element={<ClientsView />} />
                   <Route path="/enquiries" element={<EnquiriesView />} />
-                  <Route
-                    path="/reviews"
-                    element={
-                      <ClientReviewsView onNavigateToTab={handleNavigate} />
-                    }
-                  />
+                  <Route path="/reviews" element={<ClientReviewsView />} />
                   <Route
                     path="/client-reviews"
-                    element={
-                      <ClientReviewsView onNavigateToTab={handleNavigate} />
-                    }
+                    element={<ClientReviewsView />}
                   />
 
                   {/* Fallback route */}
@@ -191,19 +152,11 @@ export default function App() {
         </div>
       </div>
 
-      {/* Global Shortcuts Cheatsheet Modal */}
-      <ShortcutsHelpModal
-        isOpen={isShortcutsHelpOpen}
-        onClose={() => setIsShortcutsHelpOpen(false)}
-      />
-
-      {/* Global Command Palette (Ctrl+K / Cmd+K) */}
+      {/* Global Command Palette */}
       <CommandPaletteModal
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
         onNavigate={handleNavigate}
-        onOpenShortcutsHelp={() => setIsShortcutsHelpOpen(true)}
-        currencySymbol={effectiveCurrencySymbol}
       />
     </ToastProvider>
   );

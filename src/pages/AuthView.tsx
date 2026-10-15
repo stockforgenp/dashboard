@@ -12,7 +12,6 @@ import {
   EyeOff,
   Sun,
   Moon,
-  Languages,
   Loader2,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext.tsx";
@@ -25,7 +24,7 @@ interface AuthViewProps {
 
 export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
   const { login } = useAuth();
-  const { isNepali, toggleLanguage } = useLanguage();
+  const { isNepali } = useLanguage();
   const { isDark, toggleTheme } = useTheme();
 
   const [loading, setLoading] = useState(false);
@@ -105,13 +104,6 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={toggleLanguage}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium text-neutral-300 bg-neutral-900/80 hover:bg-neutral-800 border border-neutral-800 transition-colors cursor-pointer flex items-center gap-1.5"
-          >
-            <Languages className="w-3.5 h-3.5 text-emerald-400" />
-            <span>{isNepali ? "नेपाली" : "English"}</span>
-          </button>
 
           <button
             onClick={toggleTheme}

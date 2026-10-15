@@ -6,38 +6,21 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
-  ShoppingCart,
-  Package,
   LayoutDashboard,
-  Boxes,
-  Receipt,
-  ReceiptText,
-  Users,
-  CreditCard,
-  BarChart3,
-  Settings,
-  PlusCircle,
-  Keyboard,
   ArrowRight,
   Sun,
   Moon,
-  Languages,
   UserCheck,
   MessageSquare,
   Star,
 } from "lucide-react";
 import { NavTab } from "../layout/Sidebar.tsx";
-import { formatCurrency, fromMinorUnits } from "../../lib/utils/format.ts";
-import { MODIFIER_LABEL } from "../../lib/hooks/useGlobalShortcuts.ts";
 import { useTheme } from "../../context/ThemeContext.tsx";
-import { useLanguage } from "../../context/LanguageContext.tsx";
 
 interface CommandPaletteModalProps {
   isOpen: boolean;
   onClose: () => void;
   onNavigate: (tab: NavTab) => void;
-  onOpenShortcutsHelp: () => void;
-  currencySymbol: string;
 }
 
 interface PaletteItem {
@@ -45,8 +28,7 @@ interface PaletteItem {
   title: string;
   subtitle: string;
   icon: React.ElementType;
-  shortcut?: string;
-  category: "Screens" | "Quick Actions" | "Products";
+  category: "Screens" | "Quick Actions";
   action: () => void;
 }
 
@@ -54,11 +36,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   isOpen,
   onClose,
   onNavigate,
-  onOpenShortcutsHelp,
-  currencySymbol,
 }) => {
   const { toggleTheme, isDark } = useTheme();
-  const { toggleLanguage, isNepali, t } = useLanguage();
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -79,22 +58,10 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   const baseItems: PaletteItem[] = useMemo(
     () => [
       {
-        id: "nav-sales",
-        title: "New Sale (Point of Sale)",
-        subtitle: "Process multi-product transaction and generate receipt",
-        icon: ShoppingCart,
-        shortcut: `${MODIFIER_LABEL}+N`,
-        category: "Screens",
-        action: () => {
-          onClose();
-        },
-      },
-      {
         id: "nav-dashboard",
         title: "Dashboard Overview",
-        subtitle: "Key business metrics, recent sales, and top products",
+        subtitle: "Key business metrics, recent activities, and performance",
         icon: LayoutDashboard,
-        shortcut: `${MODIFIER_LABEL}+D`,
         category: "Screens",
         action: () => {
           onNavigate("dashboard");
@@ -103,14 +70,9 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       },
       {
         id: "nav-clients",
-        title: isNepali
-          ? "दर्ता ग्राहक तथा पसलहरू"
-          : "Registered Clients & Stores",
-        subtitle: isNepali
-          ? "ग्राहक विवरण, स्टोर प्रोफाइल र सम्पर्क जानकारी"
-          : "Manage registered clients, retail accounts, and store details",
+        title: "Registered Clients & Stores",
+        subtitle: "Manage registered clients, retail accounts, and store details",
         icon: UserCheck,
-        shortcut: "Alt+C",
         category: "Screens",
         action: () => {
           onNavigate("clients");
@@ -119,14 +81,9 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       },
       {
         id: "nav-enquiries",
-        title: isNepali
-          ? "सोधपुछ तथा डेमो अनुरोधहरू"
-          : "Customer Enquiries & Demo Leads",
-        subtitle: isNepali
-          ? "वेबसाइट सोधपुछ, अन-साइट डेमो अनुरोध र नयाँ लिड्स"
-          : "View inbound inquiries, POS demo requests, and customer leads",
+        title: "Customer Enquiries & Demo Leads",
+        subtitle: "View inbound inquiries, POS demo requests, and customer leads",
         icon: MessageSquare,
-        shortcut: "Alt+Q",
         category: "Screens",
         action: () => {
           onNavigate("enquiries");
@@ -135,28 +92,13 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       },
       {
         id: "nav-reviews",
-        title: isNepali ? "सन्तुष्ट ग्राहक समीक्षा" : "Happy Clients Reviews",
-        subtitle: isNepali
-          ? "ग्राहक सन्तुष्टि मूल्याङ्कन, तारा र आन्तरिक समीक्षाहरू"
-          : "Customer satisfaction ratings, stars, and internal reviews",
+        title: "Happy Clients Reviews",
+        subtitle: "Customer satisfaction ratings, stars, and internal reviews",
         icon: Star,
-        shortcut: "Alt+R",
         category: "Screens",
         action: () => {
           onNavigate("reviews");
           onClose();
-        },
-      },
-      {
-        id: "action-shortcuts",
-        title: "Keyboard Shortcuts Cheatsheet",
-        subtitle: "View all keyboard shortcuts and hotkeys",
-        icon: Keyboard,
-        shortcut: `?`,
-        category: "Quick Actions",
-        action: () => {
-          onClose();
-          onOpenShortcutsHelp();
         },
       },
       {
@@ -168,38 +110,18 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
           ? "Change interface to bright daylight mode"
           : "Change interface to deep obsidian night mode",
         icon: isDark ? Sun : Moon,
-        shortcut: `Alt+T`,
         category: "Quick Actions",
         action: () => {
           toggleTheme();
           onClose();
         },
       },
-      {
-        id: "action-toggle-language",
-        title: isNepali
-          ? "Switch to English Language (अंग्रेजी)"
-          : "नेपाली भाषामा बदल्नुहोस् (Switch to Nepali)",
-        subtitle: isNepali
-          ? "Set interface display language to English"
-          : "प्रयोगकर्ता इन्टरफेस नेपाली भाषामा रूपान्तरण गर्नुहोस्",
-        icon: Languages,
-        shortcut: `Alt+L`,
-        category: "Quick Actions",
-        action: () => {
-          toggleLanguage();
-          onClose();
-        },
-      },
     ],
     [
       onNavigate,
-      onOpenShortcutsHelp,
       onClose,
       isDark,
       toggleTheme,
-      isNepali,
-      toggleLanguage,
     ],
   );
 
@@ -213,8 +135,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
     return baseItems.filter(
       (item) =>
         item.title.toLowerCase().includes(q) ||
-        item.subtitle.toLowerCase().includes(q) ||
-        (item.shortcut && item.shortcut.toLowerCase().includes(q)),
+        item.subtitle.toLowerCase().includes(q),
     );
   }, [query, baseItems]);
 
@@ -293,11 +214,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={
-                  isNepali
-                    ? "कमान्ड, स्क्रिन वा सामानको नाम टाइप गर्नुहोस्..."
-                    : "Type a screen, command, or search product..."
-                }
+                placeholder="Search screens, pages, or quick actions..."
                 className="w-full bg-transparent text-neutral-100 placeholder-neutral-500 text-sm focus:outline-hidden"
               />
               <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono text-neutral-400 bg-neutral-800 border border-neutral-700 rounded">
@@ -312,10 +229,9 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
             >
               {filteredItems.length === 0 ? (
                 <div className="py-10 text-center text-xs text-neutral-500 space-y-1">
-                  <p>No matching commands or products found</p>
+                  <p>No matching commands or pages found</p>
                   <p className="text-[11px] text-neutral-600">
-                    Try searching for &quot;sale&quot;, &quot;product&quot;, or
-                    &quot;inventory&quot;
+                    Try searching for &quot;clients&quot;, &quot;enquiries&quot;, or &quot;reviews&quot;
                   </p>
                 </div>
               ) : (
@@ -348,11 +264,6 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
                         <div className="min-w-0">
                           <div className="text-xs font-semibold truncate flex items-center gap-2">
                             <span>{item.title}</span>
-                            {item.category === "Products" && (
-                              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20">
-                                Product
-                              </span>
-                            )}
                           </div>
                           <div className="text-[11px] text-neutral-400 truncate">
                             {item.subtitle}
@@ -361,11 +272,6 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0">
-                        {item.shortcut && (
-                          <kbd className="px-2 py-0.5 text-[10px] font-mono text-neutral-400 bg-neutral-900 border border-neutral-700/80 rounded">
-                            {item.shortcut}
-                          </kbd>
-                        )}
                         {isSelected && (
                           <ArrowRight className="w-3.5 h-3.5 text-emerald-400" />
                         )}
@@ -395,9 +301,9 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
               <div>
                 <span>
                   <kbd className="font-mono text-[10px] bg-neutral-800 px-1 rounded mr-1">
-                    ?
+                    ESC
                   </kbd>
-                  Shortcuts guide
+                  Close
                 </span>
               </div>
             </div>

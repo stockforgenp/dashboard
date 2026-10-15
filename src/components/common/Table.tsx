@@ -1,6 +1,7 @@
 /**
  * Shared Table Component for StockForge Dashboard
  * Standardized, theme-aware, accessible data table with built-in:
+ * - Unified Toolbar: integrated search input, filters slot, and action buttons slot
  * - Skeleton loading state (animated shimmer matching columns)
  * - Empty state with customizable iconography, messaging, and actions
  * - Interactive sorting (asc/desc with column headers)
@@ -14,8 +15,10 @@ import {
   Inbox,
   ChevronLeft,
   ChevronRight,
+  Search,
+  X,
 } from "lucide-react";
-import { TableSkeleton } from "./Skeleton";
+import { TableSkeleton } from "./Skeleton.tsx";
 
 export interface Column<T> {
   key?: string;
@@ -51,12 +54,33 @@ export interface PaginationConfig {
   onPageSizeChange?: (size: number) => void;
 }
 
+export interface TableSearchConfig<T = any> {
+  value?: string;
+  onChange?: (value: string) => void;
+  placeholder?: string;
+  predicate?: (row: T, query: string) => boolean;
+  enabled?: boolean;
+  className?: string;
+}
+
 export interface TableProps<T> {
   columns: Column<T>[];
   data: T[];
   keyExtractor?: (row: T, index: number) => string | number;
   isLoading?: boolean;
   skeletonRows?: number;
+
+  // Integrated Toolbar: Search, Filters & Actions
+  search?: TableSearchConfig<T> | boolean;
+  filters?: React.ReactNode;
+  actions?: React.ReactNode;
+  title?: React.ReactNode;
+  subtitle?: React.ReactNode;
+
+  // Custom body or view override (e.g. cards grid)
+  customView?: React.ReactNode;
+  renderBody?: (rows: T[]) => React.ReactNode;
+
   emptyState?: React.ReactNode | TableEmptyStateConfig;
   emptyTitle?: string;
   emptyDescription?: string;
@@ -74,6 +98,9 @@ export interface TableProps<T> {
   defaultSortKey?: string;
   defaultSortOrder?: "asc" | "desc";
   pagination?: PaginationConfig;
+  enablePagination?: boolean;
+  pageSize?: number;
+  pageSizeOptions?: number[];
 }
 
 export function Table<T>({
@@ -82,6 +109,13 @@ export function Table<T>({
   keyExtractor,
   isLoading = false,
   skeletonRows = 5,
+  search,
+  filters,
+  actions,
+  title,
+  subtitle,
+  customView,
+  renderBody,
   emptyState,
   emptyTitle = "No records found",
   emptyDescription = "There are no data records available for this view.",
@@ -99,10 +133,60 @@ export function Table<T>({
   defaultSortKey,
   defaultSortOrder = "asc",
   pagination,
+  enablePagination = false,
+  pageSize: initialPageSize = 10,
+  pageSizeOptions = [10, 25, 50],
 }: TableProps<T>): React.ReactElement {
   // Sorting state
   const [sortKey, setSortKey] = useState<string | undefined>(defaultSortKey);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">(defaultSortOrder);
+
+  // Internal pagination state
+  const [internalPage, setInternalPage] = useState(1);
+  const [internalPageSize, setInternalPageSize] = useState(initialPageSize);
+
+  // Search state
+  const searchConfig = useMemo<TableSearchConfig<T> | null>(() => {
+    if (!search) return null;
+    if (typeof search === "boolean") return { enabled: search };
+    return search;
+  }, [search]);
+
+  const [internalQuery, setInternalQuery] = useState("");
+  const isSearchControlled = searchConfig?.value !== undefined;
+  const currentSearchQuery = isSearchControlled
+    ? searchConfig?.value || ""
+    : internalQuery;
+
+  const handleSearchChange = (val: string) => {
+    if (!isSearchControlled) {
+      setInternalQuery(val);
+    }
+    searchConfig?.onChange?.(val);
+  };
+
+  // Client-side search filtering if query exists and either predicate provided or uncontrolled
+  const searchedData = useMemo(() => {
+    if (!currentSearchQuery.trim()) return data;
+
+    // If controlled and no predicate provided, assume caller filtered data
+    if (isSearchControlled && !searchConfig?.predicate) return data;
+
+    const queryLower = currentSearchQuery.toLowerCase().trim();
+    if (searchConfig?.predicate) {
+      return data.filter((row) =>
+        searchConfig.predicate!(row, currentSearchQuery),
+      );
+    }
+
+    // Default search across string properties
+    return data.filter((row) => {
+      return Object.values(row as Record<string, unknown>).some((val) => {
+        if (val == null) return false;
+        return String(val).toLowerCase().includes(queryLower);
+      });
+    });
+  }, [data, currentSearchQuery, isSearchControlled, searchConfig]);
 
   const getColIdentifier = (col: Column<T>, idx: number) =>
     col.key || col.id || `col-${idx}`;
@@ -120,13 +204,14 @@ export function Table<T>({
 
   // Sorted data calculation
   const sortedData = useMemo(() => {
-    if (!sortKey || !data || data.length === 0) return data;
+    if (!sortKey || !searchedData || searchedData.length === 0)
+      return searchedData;
     const targetCol = columns.find(
       (c, idx) => getColIdentifier(c, idx) === sortKey,
     );
-    if (!targetCol) return data;
+    if (!targetCol) return searchedData;
 
-    return [...data].sort((a, b) => {
+    return [...searchedData].sort((a, b) => {
       let valA: unknown;
       let valB: unknown;
 
@@ -159,7 +244,33 @@ export function Table<T>({
 
       return sortOrder === "asc" ? comparison : -comparison;
     });
-  }, [data, sortKey, sortOrder, columns]);
+  }, [searchedData, sortKey, sortOrder, columns]);
+
+  // Effective pagination (controlled or automatic internal)
+  const effectivePagination = useMemo<PaginationConfig | null>(() => {
+    if (pagination) return pagination;
+    if (enablePagination) {
+      return {
+        currentPage: internalPage,
+        pageSize: internalPageSize,
+        totalItems: sortedData.length,
+        onPageChange: (p) => setInternalPage(p),
+        pageSizeOptions,
+        onPageSizeChange: (s) => {
+          setInternalPageSize(s);
+          setInternalPage(1);
+        },
+      };
+    }
+    return null;
+  }, [pagination, enablePagination, internalPage, internalPageSize, sortedData.length, pageSizeOptions]);
+
+  // Paginated data calculation
+  const paginatedData = useMemo(() => {
+    if (!effectivePagination) return sortedData;
+    const startIndex = (effectivePagination.currentPage - 1) * effectivePagination.pageSize;
+    return sortedData.slice(startIndex, startIndex + effectivePagination.pageSize);
+  }, [sortedData, effectivePagination]);
 
   // Derive column alignment classes
   const getAlignClass = (align?: "left" | "center" | "right") => {
@@ -224,22 +335,119 @@ export function Table<T>({
     );
   };
 
+  const hasToolbar = Boolean(
+    searchConfig || filters || actions || title || subtitle,
+  );
+
   return (
     <div
       className={`bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden shadow-xs flex flex-col ${containerClassName}`}
     >
-      <div className="overflow-x-auto w-full">
-        {isLoading ? (
-          <TableSkeleton
-            rows={skeletonRows}
-            columns={columns.length}
-            columnWidths={columnWidths}
-            compact={compact}
-          />
-        ) : sortedData.length === 0 ? (
-          renderEmptyContent()
-        ) : (
-          <table className={`w-full text-xs ${className}`}>
+      {/* Integrated Toolbar: Search, Filters & Actions */}
+      {hasToolbar && (
+        <div className="p-3.5 border-b border-neutral-800/80 bg-neutral-950/60 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-1 min-w-0">
+            {/* Title / Subtitle if passed */}
+            {(title || subtitle) && (
+              <div className="shrink-0 mr-1">
+                {title && (
+                  <div className="text-sm font-bold text-neutral-100 flex items-center gap-2">
+                    {title}
+                  </div>
+                )}
+                {subtitle && (
+                  <div className="text-[11px] text-neutral-400">{subtitle}</div>
+                )}
+              </div>
+            )}
+
+            {/* Built-in Search Input */}
+            {searchConfig && searchConfig.enabled !== false && (
+              <div
+                className={`relative flex-1 max-w-md min-w-[220px] ${
+                  searchConfig.className || ""
+                }`}
+              >
+                <Search className="w-4 h-4 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={currentSearchQuery}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  placeholder={searchConfig.placeholder || "Search records..."}
+                  className="w-full pl-9 pr-8 py-2 bg-neutral-950 border border-neutral-800 rounded-lg text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-emerald-500 transition-colors"
+                />
+                {currentSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => handleSearchChange("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-200 text-xs w-4 h-4 flex items-center justify-center rounded-full hover:bg-neutral-800 transition-colors cursor-pointer"
+                    title="Clear search"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Filters Slot */}
+            {filters && (
+              <div className="flex items-center gap-2 flex-wrap">{filters}</div>
+            )}
+          </div>
+
+          {/* Actions Slot */}
+          {actions && (
+            <div className="flex items-center gap-2.5 self-start lg:self-auto shrink-0 flex-wrap">
+              {actions}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Table Body or Custom View */}
+      {renderBody ? (
+        <div className="p-4">
+          {isLoading ? (
+            <TableSkeleton
+              rows={skeletonRows}
+              columns={columns.length}
+              columnWidths={columnWidths}
+              compact={compact}
+            />
+          ) : sortedData.length === 0 ? (
+            renderEmptyContent()
+          ) : (
+            renderBody(sortedData)
+          )}
+        </div>
+      ) : customView ? (
+        <div className="p-4">
+          {isLoading ? (
+            <TableSkeleton
+              rows={skeletonRows}
+              columns={columns.length}
+              columnWidths={columnWidths}
+              compact={compact}
+            />
+          ) : sortedData.length === 0 ? (
+            renderEmptyContent()
+          ) : (
+            customView
+          )}
+        </div>
+      ) : (
+        <div className="overflow-x-auto w-full">
+          {isLoading ? (
+            <TableSkeleton
+              rows={skeletonRows}
+              columns={columns.length}
+              columnWidths={columnWidths}
+              compact={compact}
+            />
+          ) : sortedData.length === 0 ? (
+            renderEmptyContent()
+          ) : (
+            <table className={`w-full text-xs ${className}`}>
             <thead
               className={`bg-neutral-950/80 text-neutral-400 uppercase tracking-wider text-[10px] border-b border-neutral-800 ${
                 stickyHeader ? "sticky top-0 z-10 backdrop-blur-xs" : ""
@@ -294,7 +502,7 @@ export function Table<T>({
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-800/60">
-              {sortedData.map((row, rowIdx) => {
+              {paginatedData.map((row, rowIdx) => {
                 const key = keyExtractor
                   ? keyExtractor(row, rowIdx)
                   : (row as { id?: string | number }).id ?? rowIdx;
@@ -327,7 +535,9 @@ export function Table<T>({
                       } else if (typeof col.accessor === "function") {
                         content = col.accessor(row, rowIdx);
                       } else if (col.accessor) {
-                        content = row[col.accessor] as unknown as React.ReactNode;
+                        content = row[
+                          col.accessor
+                        ] as unknown as React.ReactNode;
                       }
 
                       return (
@@ -349,32 +559,33 @@ export function Table<T>({
           </table>
         )}
       </div>
+      )}
 
       {/* Footer / Pagination */}
-      {(footer || pagination) && (
+      {(footer || effectivePagination) && (
         <div className="p-3 border-t border-neutral-800/80 bg-neutral-950/40 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-neutral-400">
           {footer ? (
             <div className="w-full">{footer}</div>
-          ) : pagination ? (
+          ) : effectivePagination ? (
             <>
               <div className="text-[11px] font-mono text-neutral-500">
                 Showing{" "}
                 <span className="text-neutral-300 font-bold">
                   {Math.min(
-                    (pagination.currentPage - 1) * pagination.pageSize + 1,
-                    pagination.totalItems,
+                    (effectivePagination.currentPage - 1) * effectivePagination.pageSize + 1,
+                    effectivePagination.totalItems,
                   )}
                 </span>
                 {" - "}
                 <span className="text-neutral-300 font-bold">
                   {Math.min(
-                    pagination.currentPage * pagination.pageSize,
-                    pagination.totalItems,
+                    effectivePagination.currentPage * effectivePagination.pageSize,
+                    effectivePagination.totalItems,
                   )}
                 </span>{" "}
                 of{" "}
                 <span className="text-neutral-300 font-bold">
-                  {pagination.totalItems}
+                  {effectivePagination.totalItems}
                 </span>{" "}
                 items
               </div>
@@ -382,9 +593,9 @@ export function Table<T>({
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  disabled={pagination.currentPage <= 1}
+                  disabled={effectivePagination.currentPage <= 1}
                   onClick={() =>
-                    pagination.onPageChange(pagination.currentPage - 1)
+                    effectivePagination.onPageChange(effectivePagination.currentPage - 1)
                   }
                   className="px-2.5 py-1 rounded-lg border border-neutral-800 bg-neutral-900 text-neutral-300 hover:text-white hover:bg-neutral-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1 cursor-pointer"
                 >
@@ -393,21 +604,21 @@ export function Table<T>({
                 </button>
 
                 <span className="text-[11px] font-mono px-2 text-neutral-400">
-                  Page {pagination.currentPage} of{" "}
+                  Page {effectivePagination.currentPage} of{" "}
                   {Math.max(
                     1,
-                    Math.ceil(pagination.totalItems / pagination.pageSize),
+                    Math.ceil(effectivePagination.totalItems / effectivePagination.pageSize),
                   )}
                 </span>
 
                 <button
                   type="button"
                   disabled={
-                    pagination.currentPage >=
-                    Math.ceil(pagination.totalItems / pagination.pageSize)
+                    effectivePagination.currentPage >=
+                    Math.ceil(effectivePagination.totalItems / effectivePagination.pageSize)
                   }
                   onClick={() =>
-                    pagination.onPageChange(pagination.currentPage + 1)
+                    effectivePagination.onPageChange(effectivePagination.currentPage + 1)
                   }
                   className="px-2.5 py-1 rounded-lg border border-neutral-800 bg-neutral-900 text-neutral-300 hover:text-white hover:bg-neutral-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1 cursor-pointer"
                 >
